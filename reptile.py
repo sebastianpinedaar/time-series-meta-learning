@@ -1,6 +1,5 @@
 import load_data as ld
 import os
-from data import get_m4_data, dummy_data_generator, get_m4_data_multivariate
 from torch import optim
 from torch.nn import functional as F
 import torch.nn as nn
