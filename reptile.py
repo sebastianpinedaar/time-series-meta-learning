@@ -183,7 +183,7 @@ class ResnetRegressor(ReptileModel):
     
     def __init__(self, n_input, forecast_length, backcast_length, kernel_sizes, n_filters = 33, hidden = 512, n_blocks = 4):
         
-        super(reptile.ReptileModel, self).__init__()
+        super(ReptileModel, self).__init__()
         self.n_input = n_input
         self.forecast_length = forecast_length
         self.backcast_length = backcast_length
