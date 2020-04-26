@@ -180,11 +180,13 @@ class ResnetBlock(nn.Module):
         for conv in self.conv_list2:
             conv.cuda()
 
-class ResnetRegressor(ReptileModel):
+
+
+class ResnetRegressor(reptile.ReptileModel):
     
     def __init__(self, n_input, forecast_length, backcast_length, kernel_sizes, n_filters = 33, hidden = 512, n_blocks = 4):
         
-        super(ReptileModel, self).__init__()
+        super(reptile.ReptileModel, self).__init__()
         self.n_input = n_input
         self.forecast_length = forecast_length
         self.backcast_length = backcast_length
@@ -200,7 +202,9 @@ class ResnetRegressor(ReptileModel):
         for block in range(n_blocks):
             self.blocks.append(ResnetBlock(total_filters, kernel_sizes, n_filters))
 
-        self.feed_forward = nn.Linear(backcast_length*total_filters, forecast_length)
+        self.feed_forward = nn.Linear(backcast_length*total_filters, hidden)
+        self.feed_forward2 = nn.Linear(hidden, forecast_length)
+                                          
         
         
     def forward(self, x):
@@ -211,7 +215,8 @@ class ResnetRegressor(ReptileModel):
         for block in self.blocks:
             x = block(x)
         x = x.view(inp.shape[0], -1)
-        x = self.feed_forward(x) 
+        x = F.relu(self.feed_forward(x))
+        x = self.feed_forward2(x)
         return x
     
 
@@ -238,7 +243,3 @@ class ResnetRegressor(ReptileModel):
             block.cuda()
             block.to_cuda()
 
-
-
-
-    
