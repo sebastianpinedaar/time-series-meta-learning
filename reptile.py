@@ -149,7 +149,6 @@ class Model(ReptileModel):
             clone.cuda()
         return clone
 
-
 class ResnetBlock(nn.Module):
     
     def __init__(self, n_input, kernel_sizes, n_filters):
@@ -157,8 +156,8 @@ class ResnetBlock(nn.Module):
         self.total_filters = n_filters*len(kernel_sizes)
         self.conv = nn.Conv1d(n_input, self.total_filters, kernel_size=1)
         self.bn = nn.BatchNorm1d(self.total_filters)
-        self.conv_list1 = [  nn.Conv1d(n_input, n_filters, kernel_size, padding=int((kernel_size-1)/2)) for kernel_size in kernel_sizes]
-        self.conv_list2 = [  nn.Conv1d(self.total_filters, n_filters, kernel_size,  padding=int((kernel_size-1)/2))  for kernel_size in kernel_sizes]
+        self.conv_list1 = nn.ModuleList([  nn.Conv1d(n_input, n_filters, kernel_size, padding=int((kernel_size-1)/2)) for kernel_size in kernel_sizes])
+        self.conv_list2 = nn.ModuleList([  nn.Conv1d(self.total_filters, n_filters, kernel_size,  padding=int((kernel_size-1)/2))  for kernel_size in kernel_sizes])
         self.bn1 = nn.BatchNorm1d(self.total_filters)
         self.bn2= nn.BatchNorm1d(self.total_filters)
         
@@ -175,9 +174,11 @@ class ResnetBlock(nn.Module):
     
     def to_cuda(self):
         
-        for conv in self.conv_list1 + self.conv_list2:
+        for conv in self.conv_list1:
             conv.cuda()
-
+            
+        for conv in self.conv_list2:
+            conv.cuda()
 
 class ResnetRegressor(ReptileModel):
     
