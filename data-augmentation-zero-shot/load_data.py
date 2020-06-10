@@ -706,73 +706,8 @@ def load_and_transform_Tourism_meta_datasets (path, backcast_length, forecast_le
     
     return x_meta_train, y_meta_train, x_meta_test, y_meta_test, x_meta_val, y_meta_val
 
-def reload_and_transform_M4_meta_datasets(pickle_filename,  transform = 0, *args):
 
-    #out_type 0 is for metalearning (Reptile), where there is an additional axis for the same time series
-    std_freq, std_noise, slope_factor = args
-    n_transforms = 7
-    pickle_in = open(pickle_filename,"rb")
-    data = pickle.load(pickle_in)
-    
-    
-    x_meta_train, y_meta_train, x_meta_test, y_meta_test, x_meta_val, y_meta_val = data
-
-    
-    if(transform):
-        x_meta_train_transformed = np.zeros((x_meta_train.shape[0], x_meta_train.shape[1]*n_transforms , x_meta_train.shape[2]))
-        y_meta_train_transformed = np.zeros((y_meta_train.shape[0], y_meta_train.shape[1]*n_transforms , y_meta_train.shape[2]))
-
-        for i in range(x_meta_train.shape[0]):
-            for j in range(x_meta_train.shape[1]):
-                temp_ts = np.hstack((x_meta_train[i,j,:],y_meta_train[i,j,:]))
-                #temp_ts = x_meta_train[i,j,:]
-                temp_ts = transform_time_series(temp_ts, std_freq, std_noise, slope_factor)
-                #x_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = transform_time_series(temp_ts, std_freq, std_noise, slope_factor)
-                x_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = temp_ts[:,:x_meta_train.shape[2]]
-                #y_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = np.vstack([y_meta_train[i,j,:]]*n_transforms)
-                y_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = temp_ts[:,x_meta_train.shape[2]:]
-
-        return x_meta_train_transformed, y_meta_train_transformed, x_meta_test, y_meta_test, x_meta_val, y_meta_val
-
-    else:
-        return x_meta_train, y_meta_train, x_meta_test, y_meta_test, x_meta_val, y_meta_val
-
-
-
-def reload_and_transform_M4_meta_datasets_(pickle_filename,  transform = 0, *args):
-
-    #out_type 0 is for metalearning (Reptile), where there is an additional axis for the same time series
-    std_freq, std_noise, slope_factor = args
-    n_transforms = 7
-    pickle_in = open(pickle_filename,"rb")
-    data = pickle.load(pickle_in)
-    
-    
-    x_meta_train, y_meta_train, x_meta_test, y_meta_test, x_meta_val, y_meta_val = data
-
-    
-    if(transform):
-        x_meta_train_transformed = np.zeros((x_meta_train.shape[0], x_meta_train.shape[1]*n_transforms , x_meta_train.shape[2]))
-        y_meta_train_transformed = np.zeros((y_meta_train.shape[0], y_meta_train.shape[1]*n_transforms , y_meta_train.shape[2]))
-
-        for i in range(x_meta_train.shape[0]):
-            for j in range(x_meta_train.shape[1]):
-                temp_ts = np.hstack((x_meta_train[i,j,:],y_meta_train[i,j,:]))
-                #temp_ts = x_meta_train[i,j,:]
-                temp_ts = transform_time_series(temp_ts, std_freq, std_noise, slope_factor)
-                #x_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = transform_time_series(temp_ts, std_freq, std_noise, slope_factor)
-                x_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = temp_ts[:,:x_meta_train.shape[2]]
-                y_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = np.vstack([y_meta_train[i,j,:]]*n_transforms)
-                #y_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = temp_ts[:,x_meta_train.shape[2]:]
-
-        return x_meta_train_transformed, y_meta_train_transformed, x_meta_test, y_meta_test, x_meta_val, y_meta_val
-
-    else:
-        return x_meta_train, y_meta_train, x_meta_test, y_meta_test, x_meta_val, y_meta_val
-
-
-
-def reload_and_transform_M4_meta_datasets_2(pickle_filename,  transforms = [], *args):
+def reload_and_transform_meta_datasets(pickle_filename,  transforms = [], *args):
 
     #out_type 0 is for metalearning (Reptile), where there is an additional axis for the same time series
     std_freq, std_noise, slope_factor = args
@@ -789,14 +724,18 @@ def reload_and_transform_M4_meta_datasets_2(pickle_filename,  transforms = [], *
         y_meta_train_transformed = np.zeros((y_meta_train.shape[0], y_meta_train.shape[1]*n_transforms , y_meta_train.shape[2]))
 
         for i in range(x_meta_train.shape[0]):
-            for j, tr in enumerate(transforms):
+            for j in range(x_meta_train.shape[1]):
+            #for j, tr in enumerate(transforms):
                 temp_ts = np.hstack((x_meta_train[i,j,:],y_meta_train[i,j,:]))
                 #temp_ts = x_meta_train[i,j,:]
                 temp_ts = transform_time_series(temp_ts, std_freq, std_noise, slope_factor)
-                #x_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = transform_time_series(temp_ts, std_freq, std_noise, slope_factor)
-                x_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = temp_ts[tr,:x_meta_train.shape[2]]
-                #y_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = np.vstack([y_meta_train[i,j,:]]*n_transforms)
-                y_meta_train_transformed[i,j*n_transforms: (j+1)*n_transforms,:] = temp_ts[tr,x_meta_train.shape[2]:]
+                
+                x_meta_train_transformed[i,n_transforms*j,:] = temp_ts[0,:x_meta_train.shape[2]]
+                y_meta_train_transformed[i,n_transforms*j,:] = temp_ts[0,x_meta_train.shape[2]:]
+
+                for k, tr in enumerate(transforms[1:]):
+                    x_meta_train_transformed[i,(n_transforms*j)+k+1,:] = temp_ts[tr,:x_meta_train.shape[2]]
+                    y_meta_train_transformed[i,(n_transforms*j)+k+1,:] = temp_ts[tr,x_meta_train.shape[2]:]                    
 
         return x_meta_train_transformed, y_meta_train_transformed, x_meta_test, y_meta_test, x_meta_val, y_meta_val
 

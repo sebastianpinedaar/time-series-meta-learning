@@ -14,7 +14,6 @@ import pandas as pd
 from utils import *
 import reptile
 import sys
-from scipy import signal
 import argparse
 import pickle
 
@@ -27,7 +26,6 @@ def main(args):
     backcast_length = args.backcast_length
     forecast_length = args.forecast_length
     model_file = args.model_file
-    transform = args.transform
 
     print(args)
     n_stacks = 20
@@ -38,11 +36,51 @@ def main(args):
     iterations = 10000
     batch_size = 1024
     pct = (0.8, 0.9, 1.0)
-    std_freq, std_noise, slope_factor = (0.3, 0.01, 0.1)
+
+
+
+    if dataset== "M4":
+        
+        path = "M4DataSet/"
+        files = os.listdir(path)
+        print(files)
+        x_train, y_train, x_test, y_test, x_val, y_val = ld.load_M4_meta_datasets(path+files[subdataset], 
+                                                                                backcast_length, 
+                                                                                forecast_length, 
+                                                                                n_tasks=samples_per_task,
+                                                                                pct = pct)
+
+    elif dataset == "TOURISM":
+        
+        path = "TourismDataSet/"
+        files = os.listdir(path)
+
+
+        x_train, y_train, x_test, y_test, x_val, y_val = ld.load_Tourism_meta_datasets(path, 
+                                                                                    backcast_length, 
+                                                                                    forecast_length, 
+                                                                                    n_tasks=samples_per_task,
+                                                                                    pct=pct)
+       
+    else:
+        filename = "M3DataSet/M3C.xls"
+        df = pd.read_excel(filename, sheet_name= None)
+        sheet_names = list(df.keys())
+        sheet_name = sheet_names[subdataset]
+        
+        x_train, y_train, x_test, y_test, x_val, y_val = ld.load_M3_meta_datasets(filename, 
+                                                                                sheet_name, 
+                                                                                backcast_length, 
+                                                                                forecast_length, 
+                                                                                n_tasks=samples_per_task,
+                                                                                pct=pct)
 
     pickle_name = "temp/"+model_file.split(".")[0]+"-"+dataset+"-sub"+str(subdataset)+".pickle"
-
-    x_train, y_train, x_test, y_test, x_val, y_val = ld.reload_and_transform_meta_datasets(pickle_name, transform, std_freq, std_noise, slope_factor)
+    data = x_train, y_train, x_test, y_test, x_val, y_val
+    
+    pickle_out = open(pickle_name,"wb")
+    pickle.dump(data, pickle_out)
+    pickle_out.close()
 
     x_max = []
     scaled = []
@@ -55,7 +93,7 @@ def main(args):
     x_max_train, x_max_test, x_max_val = x_max
     x_train_scaled, y_train_scaled, x_test_scaled, y_test_scaled, x_val_scaled, y_val_scaled = scaled
 
-    """
+    
     model = beats.NBeatsNet(device, tuple(stack_types),                 
                     nb_blocks_per_stack=1,
                     forecast_length=forecast_length,
@@ -63,18 +101,6 @@ def main(args):
                     thetas_dims=theta_dims,
                     share_weights_in_stack=False,
                     hidden_layer_units=512)
-    """
-
-    n_filters = 33
-    kernel_sizes = [32, 16, 8, 4]
-    n_input = 1
-    n_output = forecast_length
-    n_blocks = 3
-    hidden = 512
-
-    model =  reptile.ResnetRegressor(n_input, forecast_length, backcast_length, kernel_sizes, n_filters, hidden, n_blocks)
-    model.cuda()
-    model.to_cuda()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
 
@@ -105,7 +131,7 @@ def main(args):
         loss.backward()
         optimizer.step()
 
-        max_val = (val_samples//batch_size)*batch_size
+            
         data_gen_val = ld.batcher((x_val, y_val), batch_size=batch_size, infinite=False)
         temp_loss = reptile.do_evaluation(model, smape, data_gen_val, batch_size, device )#reuse from reptile
         val_loss = 200*temp_loss/(forecast_length*val_samples)
@@ -128,7 +154,6 @@ def main(args):
     x_test = x_test.reshape(-1, backcast_length)
     y_test = y_test.reshape(-1, forecast_length)
     test_samples = x_test.shape[0]
-    max_test = (test_samples//batch_size)*batch_size
     data_gen_test = ld.batcher((x_test, y_test), batch_size=batch_size, infinite=False)
     temp_loss = reptile.do_evaluation(model, smape, data_gen_test, batch_size, device )#reuse from reptile
     test_loss = 200*temp_loss/(forecast_length*test_samples)
@@ -148,7 +173,7 @@ if __name__ == '__main__':
     argparser.add_argument('--samples_per_task', type=int, help='number of samples per time series', default=2)
     argparser.add_argument('--backcast_length', type=int, help='number of points to use in input', default=42)
     argparser.add_argument('--forecast_length', type=int, help='number of points to predict', default=6)
-    argparser.add_argument('--transform', type=int, help='whether to perfom data augmentation or not', default=1)
+
     
     args = argparser.parse_args()
 

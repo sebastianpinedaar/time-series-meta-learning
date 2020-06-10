@@ -43,7 +43,7 @@ def main(args):
     pickle_name = "temp/"+model_file.split(".")[0]+"-"+dataset+"-sub"+str(subdataset)+".pickle"
 
     #ts_sample, new_ts_ampl, new_ts_gauss, new_ts_phase, new_ts_f1, new_ts_f2, new_ts_f3
-    x_train, y_train, x_test, y_test, x_val, y_val = ld.reload_and_transform_M4_meta_datasets_2(pickle_name, [transform], std_freq, std_noise, slope_factor)
+    x_train, y_train, x_test, y_test, x_val, y_val = ld.reload_and_transform_meta_datasets(pickle_name, [transform], std_freq, std_noise, slope_factor)
 
     print(x_train[0])
     print(x_val.shape)
