@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import pickle
 from ts_dataset import TSDataset
-from ts_transform import sliding_window
+from ts_transform import sliding_window, scale_datasets
 
 def preprocess_pollution(data, var):
 
@@ -69,64 +69,29 @@ def load_data_pollution(window_size, task_size, stride=1, mode="meta-learning", 
         else:
             test_files.append(file_name)
 
-    #training dataset
-    data = pd.read_csv(path+training_files[0])
-    data = np.array(preprocess_pollution(data, var))
-    train_dataset = TSDataset(data, window_size, task_size, stride, mode)
-    
-    for file_name in training_files[1:]:
 
-        data = pd.read_csv(path+file_name)       
+    def create_dataset(files_list):
+
+        data = pd.read_csv(path+files_list[0])
         data = np.array(preprocess_pollution(data, var))
-        train_dataset += TSDataset(data, window_size, task_size, stride, mode)
+        dataset = TSDataset(data, window_size, task_size, stride, mode)
+        
+        for file_name in files_list[1:]:
 
-    #validation dataset
-    data = pd.read_csv(path+validation_files[0])
-    data = np.array(preprocess_pollution(data, var))
-    validation_dataset = TSDataset(data, window_size, task_size, stride, mode)
+            data = pd.read_csv(path+file_name)       
+            data = np.array(preprocess_pollution(data, var))
+            dataset += TSDataset(data, window_size, task_size, stride, mode)
+
+        return dataset
     
-    for file_name in validation_files[1:]:
-
-        data = pd.read_csv(path+file_name)       
-        data = np.array(preprocess_pollution(data, var))
-        validation_dataset += TSDataset(data, window_size, task_size, stride, mode)    
-    
-    #test dataset
-    data = pd.read_csv(path+test_files[0])
-    data = np.array(preprocess_pollution(data, var))
-    test_dataset = TSDataset(data, window_size, task_size, stride, mode)
-    
-    for file_name in test_files[1:]:
-
-        data = pd.read_csv(path+file_name)       
-        data = np.array(preprocess_pollution(data, var))
-        test_dataset += TSDataset(data, window_size, task_size, stride, mode)  
-
+    train_dataset = create_dataset(training_files)
+    validation_dataset = create_dataset(validation_files)
+    test_dataset = create_dataset(test_files)
 
     #scaling
-
-    if normalize:
-        train_dataset.compute_min_max_params()
-        max_list, min_list = train_dataset.get_min_max_params()
-        validation_dataset.set_min_max_params(max_list, min_list)
-        test_dataset.set_min_max_params(max_list, min_list)
-
-        train_dataset.normalize()
-        validation_dataset.normalize()
-        test_dataset.normalize()
-        
-    if standarize:
-        train_dataset.compute_standard_params()
-        mean, std = train_dataset.get_standard_params()
-        validation_dataset.set_standard_params(mean, std)
-        test_dataset.set_standard_params(mean, std)
-
-        train_dataset.standarize()
-        validation_dataset.standarize()
-        test_dataset.standarize()
+    scale_datasets(normalize, standarize, train_dataset, validation_dataset, test_dataset)
 
     return train_dataset, validation_dataset, test_dataset
-
 
 ###heart rate data
 def create_signals(data, signals, names, min_sampling, freq_ECG, window_size_secs, step_size_secs):
@@ -144,10 +109,12 @@ def create_signals(data, signals, names, min_sampling, freq_ECG, window_size_sec
     peaks_df["Diff"] = peaks_df["Peak"]- peaks_df["Lag"]
     peaks_on_step = peaks//step
     no_peaks_on_step = set(list(np.arange(np.max(peaks_on_step)))).difference(set(list(peaks_on_step)))
-
-    peaks_count = pd.DataFrame({"Peak_group": peaks_on_step, "Count": np.ones(len(peaks_on_step)), "Diff": peaks_df["Diff"]}).groupby("Peak_group").sum().reset_index()
-
-    no_peaks_count = pd.DataFrame({"Peak_group": list(no_peaks_on_step), "Count": np.zeros(len(no_peaks_on_step)), "Diff": np.zeros(len(no_peaks_on_step))})
+    peaks_count = pd.DataFrame({"Peak_group": peaks_on_step, 
+                                "Count": np.ones(len(peaks_on_step)), 
+                                "Diff": peaks_df["Diff"]}).groupby("Peak_group").sum().reset_index()
+    no_peaks_count = pd.DataFrame({"Peak_group": list(no_peaks_on_step), 
+                                    "Count": np.zeros(len(no_peaks_on_step)), 
+                                    "Diff": np.zeros(len(no_peaks_on_step))})
     peaks_count = pd.concat([peaks_count, no_peaks_count]).sort_values(by=["Peak_group"]).reset_index()
  
 
@@ -175,7 +142,6 @@ def create_signals(data, signals, names, min_sampling, freq_ECG, window_size_sec
     
     return data_matrix
 
-
 def get_signals_names (signals):
     
     names = []
@@ -187,41 +153,50 @@ def get_signals_names (signals):
             
     return names
 
-def preprocess_heart_rate (path, folders, names):
-    
-    data_signals_list = []
-    
-    for folder in folders:
+def load_data_heart_rate( window_size, 
+                          task_size, 
+                          stride = 1, 
+                          mode = "meta-learning",
+                          standarize = True,
+                          normalize = True,
+                          min_sampling = 4, 
+                          freq_ECG = 700, 
+                          window_size_secs = 8, 
+                          step_size_secs = 0.25):
 
-        print("Processing subject ", folder, "...")
+
+
+    def preprocess_heart_rate (path, folders):
         
-        file_pkl = path+folder+"/"+folder+".pkl"
-        file_csv = path+folder+"/"+folder+"_quest.csv"
+        data_signals_list = []
+        
+        for folder in folders:
 
-        with open(file_pkl, 'rb') as f:
-            u = pickle._Unpickler(f)
-            u.encoding = 'latin1'
-            data = u.load()
+            print("Processing subject ", folder, "...")
+            
+            file_pkl = path+folder+"/"+folder+".pkl"
+            file_csv = path+folder+"/"+folder+"_quest.csv"
 
-        data_signals = create_signals(data, signals, names, min_sampling, freq_ECG, window_size_secs, step_size_secs)
-        subject_info = pd.read_csv(file_csv)
-        data_signals["AGE"] = float(subject_info.iloc[0,1])
-        data_signals ["GENDER"] = 1.0 if subject_info.iloc[1,1]=="m" else 0.0
-        data_signals ["HEIGHT"] = float(subject_info.iloc[2,1])
-        data_signals ["WEIGHT"] = float(subject_info.iloc[3,1])
-        data_signals ["SKIN"] = float(subject_info.iloc[4,1])
-        data_signals ["SPORT"] = float(subject_info.iloc[5,1])
-        data_signals_list.append(data_signals)
+            with open(file_pkl, 'rb') as f:
+                u = pickle._Unpickler(f)
+                u.encoding = 'latin1'
+                data = u.load()
 
-    data_merged = pd.concat(data_signals_list)
-    
-    print("Processed data with shape:", data_merged.shape)
-    
-    return data_merged
+            data_signals = create_signals(data, signals, names, min_sampling, freq_ECG, window_size_secs, step_size_secs)
+            subject_info = pd.read_csv(file_csv)
+            data_signals["AGE"] = float(subject_info.iloc[0,1])
+            data_signals ["GENDER"] = 1.0 if subject_info.iloc[1,1]=="m" else 0.0
+            data_signals ["HEIGHT"] = float(subject_info.iloc[2,1])
+            data_signals ["WEIGHT"] = float(subject_info.iloc[3,1])
+            data_signals ["SKIN"] = float(subject_info.iloc[4,1])
+            data_signals ["SPORT"] = float(subject_info.iloc[5,1])
+            data_signals_list.append(data_signals)
 
-
-def load_data_heart_rate(min_sampling = 4, freq_ECG = 700, window_size_secs = 8, step_size_secs = 0.25):
-
+        data_merged = pd.concat(data_signals_list)
+        
+        print("Processed data with shape:", data_merged.shape)
+        
+        return data_merged
     
     signals = [("chest","ACC", 700, 3), ("chest","ECG", 700, 1), ("chest", "EMG", 700, 1), ("chest", "EDA", 700, 1), 
                 ("chest", "Temp", 700,1), ("chest","Resp", 700, 1), ("wrist", "ACC", 32, 3), ("wrist", "BVP", 64, 1), 
@@ -236,7 +211,7 @@ def load_data_heart_rate(min_sampling = 4, freq_ECG = 700, window_size_secs = 8,
     #   'wrist-ACC2', 'wrist-BVP', 'wrist-EDA', 'wrist-TEMP', 'Act', 
     #   'AGE', 'GENDER', 'HEIGHT', 'WEIGHT', 'SKIN', 'SPORT', 'HR']
 
-    var = ['chest-ACC', 'chest-ACC1', 'chest-ACC2', 'chest-EMG', 'chest-ECG',
+    var = ['chest-ACC', 'chest-ACC1', 'chest-ACC2', 'chest-EMG', #'chest-ECG',
        'chest-EDA', 'chest-Temp', 'chest-Resp', 'wrist-ACC', 'wrist-ACC1',
        'wrist-ACC2', 'wrist-BVP', 'wrist-EDA', 'wrist-TEMP', 'HR']
 
@@ -259,20 +234,97 @@ def load_data_heart_rate(min_sampling = 4, freq_ECG = 700, window_size_secs = 8,
         else:
             test_folders.append(folder)
     
-    #training dataset
+    #creating datasets
 
-    data = np.array(get_heart_rate_data([[0]], names)[var])
+    def create_dataset(folders_list):
 
-    print(split_info)
+        data = np.array(preprocess_heart_rate(path, [folders_list[0]])[var])
+        dataset = TSDataset(data, window_size, task_size, stride, mode)
+        for folder in folders_list[1:]:
+            data = np.array(preprocess_heart_rate(path, [folder])[var])
+            dataset += TSDataset(data, window_size, task_size, stride, mode)
+
+        return dataset
+
+    train_dataset = create_dataset(training_folders)
+    validation_dataset = create_dataset(validation_folders)
+    test_dataset = create_dataset(test_folders)
+  
+  
+    #scaling
+    scale_datasets(normalize, standarize, train_dataset, validation_dataset, test_dataset)
+
+    return train_dataset, validation_dataset, test_dataset
+
+#batteries
+def preprocess_batteries(data, var):
+    
+    Q = 60.0  + np.cumsum(data.I)/36000
+    data["Q"] = Q
+    return data[var]
+
+def load_battery_data(window_size, task_size, stride=1, mode="meta-learning", standarize=True, normalize=True):
+
+    path = "C:/Users/Sebastian/Documents/Data Analytics Master/Semester4-Thesis/Datasets/Battery-data/vw/DataLake/DataLake/"
+    var = ["U", "T", "I", "Q"]
+
+    folders = os.listdir(path)
+    files = []
+
+    for folder in folders:
+        files+=[folder+"/"+f for f in os.listdir(path+folder)]
+
+    split_info = pd.read_excel("../Data/Data-set-split.ods", engine="odf", sheet_name="Battery")
+    split_info = split_info.iloc[:96, [0,2, 3]]
+    split_info["row_name"] = split_info.Folder.astype(str)+"/"+split_info.File+".csv"
+    split_info = split_info.set_index("row_name")
+
+    training_files = []
+    validation_files = []
+    test_files = []
+
+    for file_name in files:
+
+        meta_set = split_info.loc[file_name, "Meta-set"]
+
+        if meta_set == "Meta-train":
+            training_files.append(file_name)
+        elif meta_set == "Meta-val":
+            validation_files.append(file_name)
+        else:
+            test_files.append(file_name)
+
+    #training
+
+    def create_dataset(file_list):
+        data = pd.read_csv(path+file_list[0])
+        data = np.array(preprocess_batteries(data,var))
+        dataset = TSDataset(data, window_size, task_size, stride, mode)
+
+        for file_name in file_list[1:]:
+            data = pd.read_csv(path+file_name)
+            data = np.array(preprocess_batteries(data, var))
+            dataset += TSDataset(data, window_size, task_size, stride, mode)
+
+        return dataset
+   
+    train_dataset = create_dataset(training_files)
+    validation_dataset = create_dataset(validation_files)
+    test_dataset = create_dataset(test_files)
+
+    scale_datasets(normalize, standarize, train_dataset, validation_dataset, test_dataset)
+
+    return train_dataset, validation_dataset, test_dataset
 
 if __name__ == "__main__":
 
-    #data1, data2, data3 = load_data_pollution(100,100,1,"meta-learning")
+    data1, data2, data3 = load_data_pollution(100,100,1,"meta-learning")
 
-    min_sampling = 4 # Hz
-    freq_ECG = 700
-    window_size_secs = 8
-    step_size_secs = 0.25
-    load_data_heart_rate()
+    #min_sampling = 4 # Hz
+    #freq_ECG = 700
+    #window_size_secs = 8
+    #step_size_secs = 0.25
+    #data1, data2, data3 = load_data_heart_rate(50,100)
 
+    #load_battery_data(30,1000)
     print(data1.x.shape, data2.x.shape, data3.x.shape)

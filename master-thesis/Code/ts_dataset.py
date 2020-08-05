@@ -3,6 +3,7 @@ import numpy as np
 import copy
 
 
+
 class TSDataset(object):
     """An abstract class representing a Dataset.
     All other datasets should subclass it. All subclasses should override
@@ -110,4 +111,3 @@ class TSDataset(object):
         x_temp = self.x.reshape(-1, self.dim)
         self.x = ((x_temp - self.mean)/self.std).reshape(original_size)
 
-    
