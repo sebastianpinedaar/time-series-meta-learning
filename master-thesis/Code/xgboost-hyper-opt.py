@@ -54,9 +54,9 @@ for dataset_name, window_size, task_size in dataset_names:
         y_pred = model.predict(validation_data.x)
         mae_val = mae(y_pred, validation_data.y)
 
-        print("MSE:", mae_val, " with hyper:", random_hyper)
+        print("MAE:", mae_val, " with hyper:", random_hyper)
 
         hyperparam_history.append(random_hyper)
         mae_history.append(mae_val)
 
-    pd.DataFrame({"Hyperparams": hyperparam_history, "MSE": mae_history}).to_csv("../Data/results/"+dataset_name+"_xgboost.csv")
+    pd.DataFrame({"Hyperparams": hyperparam_history, "MAE": mae_history}).to_csv("../Data/results/"+dataset_name+"_xgboost_.csv")

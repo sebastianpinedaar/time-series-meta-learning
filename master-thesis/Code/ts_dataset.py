@@ -16,7 +16,9 @@ class TSDataset(object):
                 window_size,
                 task_size,
                 stride = 1,
-                mode = "meta-learning"):
+                mode = "meta-learning",
+                file_counter = 0,
+                filter = False):
         
         x_list = []
         y_list = []
@@ -41,7 +43,13 @@ class TSDataset(object):
             self.x = np.concatenate(x_list, axis=0)
             self.y = np.concatenate(y_list, axis=0)
         
+        self.task_size = task_size
         self.dim = self.x.shape[-1]
+        self.file_idx = [file_counter]*self.x.shape[0]
+        self.mode = mode
+
+        if filter:   
+            self.filter_data()
 
         print("x shape:", self.x.shape)
         print("y shape:", self.y.shape)
@@ -58,7 +66,8 @@ class TSDataset(object):
         object_copy.x = np.concatenate([object_copy.x, other.x], axis=0)
         object_copy.y = np.concatenate([object_copy.y, other.y], axis=0)
         
-        object_copy.dim = object_copy.dim  
+        object_copy.dim = object_copy.dim 
+        object_copy.file_idx = object_copy.file_idx + other.file_idx
         
         return object_copy
     
@@ -110,4 +119,21 @@ class TSDataset(object):
         original_size = self.x.shape
         x_temp = self.x.reshape(-1, self.dim)
         self.x = ((x_temp - self.mean)/self.std).reshape(original_size)
+
+    def filter_data(self):
+
+        print("Filtering samples with invalid targets...")
+
+        if(self.mode == "meta-learning"):
+            where_to_delete = np.where(np.sum(self.y!=0, axis=1)<self.task_size*0.5)[0]
+
+        else:
+            w = 500
+            conv =  np.convolve(self.y.reshape(-1), np.ones(w), 'same') / w
+            where_to_delete = np.where(conv==0)[0]
+
+        print("where to delete:", where_to_delete.shape)
+        self.x = np.delete(self.x, where_to_delete, axis=0)
+        self.y = np.delete(self.y, where_to_delete, axis=0)
+
 

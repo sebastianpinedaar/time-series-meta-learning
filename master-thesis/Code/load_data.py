@@ -72,15 +72,18 @@ def load_data_pollution(window_size, task_size, stride=1, mode="meta-learning", 
 
     def create_dataset(files_list):
 
+        file_counter = 0
         data = pd.read_csv(path+files_list[0])
         data = np.array(preprocess_pollution(data, var))
-        dataset = TSDataset(data, window_size, task_size, stride, mode)
+        dataset = TSDataset(data, window_size, task_size, stride, mode, file_counter, filter=True)
+
         
         for file_name in files_list[1:]:
 
+            file_counter += 1
             data = pd.read_csv(path+file_name)       
             data = np.array(preprocess_pollution(data, var))
-            dataset += TSDataset(data, window_size, task_size, stride, mode)
+            dataset += TSDataset(data, window_size, task_size, stride, mode, file_counter, filter=True)
 
         return dataset
     
@@ -238,11 +241,14 @@ def load_data_heart_rate( window_size,
 
     def create_dataset(folders_list):
 
+        file_counter = 0
         data = np.array(preprocess_heart_rate(path, [folders_list[0]])[var])
-        dataset = TSDataset(data, window_size, task_size, stride, mode)
+        dataset = TSDataset(data, window_size, task_size, stride, mode, file_counter)
+
         for folder in folders_list[1:]:
+            file_counter += 1
             data = np.array(preprocess_heart_rate(path, [folder])[var])
-            dataset += TSDataset(data, window_size, task_size, stride, mode)
+            dataset += TSDataset(data, window_size, task_size, stride, mode, file_counter)
 
         return dataset
 
@@ -267,6 +273,7 @@ def load_battery_data(window_size, task_size, stride=1, mode="meta-learning", st
 
     path = "C:/Users/Sebastian/Documents/Data Analytics Master/Semester4-Thesis/Datasets/Battery-data/vw/DataLake/DataLake/"
     var = ["U", "T", "I", "Q"]
+    n_files = 96
 
     folders = os.listdir(path)
     files = []
@@ -274,8 +281,9 @@ def load_battery_data(window_size, task_size, stride=1, mode="meta-learning", st
     for folder in folders:
         files+=[folder+"/"+f for f in os.listdir(path+folder)]
 
+    
     split_info = pd.read_excel("../Data/Data-set-split.ods", engine="odf", sheet_name="Battery")
-    split_info = split_info.iloc[:96, [0,2, 3]]
+    split_info = split_info.iloc[:n_files, [0,2, 3]]
     split_info["row_name"] = split_info.Folder.astype(str)+"/"+split_info.File+".csv"
     split_info = split_info.set_index("row_name")
 
@@ -297,14 +305,17 @@ def load_battery_data(window_size, task_size, stride=1, mode="meta-learning", st
     #training
 
     def create_dataset(file_list):
+
+        file_counter = 0
         data = pd.read_csv(path+file_list[0])
         data = np.array(preprocess_batteries(data,var))
-        dataset = TSDataset(data, window_size, task_size, stride, mode)
+        dataset = TSDataset(data, window_size, task_size, stride, mode, file_counter )
 
         for file_name in file_list[1:]:
+            file_counter+=1
             data = pd.read_csv(path+file_name)
             data = np.array(preprocess_batteries(data, var))
-            dataset += TSDataset(data, window_size, task_size, stride, mode)
+            dataset += TSDataset(data, window_size, task_size, stride, mode, file_counter)
 
         return dataset
    
@@ -318,7 +329,7 @@ def load_battery_data(window_size, task_size, stride=1, mode="meta-learning", st
 
 if __name__ == "__main__":
 
-    data1, data2, data3 = load_data_pollution(100,100,1,"meta-learning")
+    data1, data2, data3 = load_data_pollution(5,25,1,"meta-learning")
 
     #min_sampling = 4 # Hz
     #freq_ECG = 700
