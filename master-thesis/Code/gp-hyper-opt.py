@@ -4,7 +4,7 @@ import xgboost as xgb
 import pickle
 
 from ts_dataset import TSDataset
-from sklearn.metrics import mean_absolute_error as mae #
+from sklearn.metrics import mean_absolute_error as mae
 import numpy as np
 import pandas as pd
 
