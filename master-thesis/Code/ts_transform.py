@@ -1,4 +1,6 @@
 import numpy as np
+import pandas as pd 
+from utils import progressBar
 
 def sliding_window(x, window_size, stride):
     
@@ -32,3 +34,41 @@ def scale_datasets(standarize = True, normalize = True, *datasets):
         train_dataset.standarize()
         validation_dataset.standarize()
         test_dataset.standarize()
+
+def sample_to_sktime(sample):
+    
+    #inspired by tslearn https://github.com/tslearn-team/tslearn/blob/775dadd/tslearn/utils.py#L867-L939
+    X_ = sample
+    X_pd = pd.DataFrame(dtype=np.float32)
+    for dim in range(X_.shape[2]):
+        X_pd['dim_' + str(dim)] = [pd.Series(data=Xi[:Xi.shape[0], dim])
+                                   for Xi in X_]#
+    
+    return X_pd
+
+def dataset_to_sktime(dataset):
+
+    sktime_dataset = []
+
+    print("Transforming dataset to sktime format...")
+
+    for i, sample in enumerate(dataset.x):
+
+        progressBar(i, dataset.x.shape[0],40 )
+        sktime_dataset.append(sample_to_sktime(sample[np.newaxis,:]))
+
+    return sktime_dataset
+
+
+def apply_rocket_kernels(sktime_dataset, rocket):
+
+    data_features = []
+
+    for i, sample in enumerate(sktime_dataset):
+        
+        progressBar(i, len(sktime_dataset), 40)
+        data_features.append(rocket.transform(sample))
+
+    data_features = np.concatenate(data_features, axis=0)
+    
+    return data_features
