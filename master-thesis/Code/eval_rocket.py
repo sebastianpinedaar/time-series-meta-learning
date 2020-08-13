@@ -8,11 +8,12 @@ from sklearn.metrics import mean_squared_error  as mse #
 from sklearn.linear_model import RidgeCV
 
 num_kernels = 10000
-dataset_names = [("POLLUTION", 5, 25)]
+dataset_names = [("POLLUTION", 5, 25), ("HR", 32, 25)]
 dataset_name, window_size, task_size = dataset_names[0]
 
 train_data = pickle.load(  open( "../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
 validation_data = pickle.load( open( "../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
+validation_data_ML = pickle.load( open( "../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
 test_data = pickle.load( open( "../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
 test_data_ML = pickle.load( open( "../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
 
