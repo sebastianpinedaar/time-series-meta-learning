@@ -10,22 +10,21 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel,  DotProduct,  RationalQuadratic 
 from utils import progressBar
 
-
-
-#dataset_name = "POLLUTION"
-#window_size = 5
-#task_size = 25
-#hyperparams = [0.1, 2, 3, 100]
-
 dataset_name = "HR"
-window_size = 32
-task_size = 25
-hyperparams =  [0.05, 2, 3, 100]
+task_size = 50
 
-#dataset_name = "BATTERY"
-#window_size = 20
-#task_size = 25
-#hyperparams = [0.05, 7, 1, 100]
+
+if dataset_name == "POLLUTION":
+    window_size = 5
+    hyperparams = [0.1, 2, 3, 100]
+
+elif dataset_name == "HR":
+    window_size = 32
+    hyperparams =  [0.05, 2, 3, 100]
+
+elif dataset_name == "BATTERY":
+    window_size = 20
+    hyperparams = [0.05, 7, 1, 100]
 
 train_data = pickle.load(  open( "../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
 validation_data = pickle.load( open( "../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
@@ -45,8 +44,8 @@ accumulated_mae = 0
 accumulated_mse = 0
 
 print(test_size_ML, " points to process...")
-
-for i in range(test_size_ML-3):
+horizon = 10
+for i in range(test_size_ML-horizon-1):
 
 
     x_train = test_data_ML.x[i].reshape(-1, window_size*dim)
@@ -56,10 +55,10 @@ for i in range(test_size_ML-3):
     gpr = GaussianProcessRegressor(kernel=temp_kernel, random_state=0)
     gpr.fit(x_train, y_train)
 
-    y_pred = gpr.predict(test_data_ML.x[i+3].reshape(-1, window_size*dim))
+    y_pred = gpr.predict(test_data_ML.x[i+1:i+horizon].reshape(-1, window_size*dim))
 
-    temp_mae = mae(y_pred, test_data_ML.y[i+3])
-    temp_mse = mse(y_pred, test_data_ML.y[i+3])
+    temp_mae = mae(y_pred, test_data_ML.y[i+1:i+horizon].reshape(-1, 1))
+    temp_mse = mse(y_pred, test_data_ML.y[i+1:i+horizon].reshape(-1, 1))
 
     mae_list.append(temp_mae)
     mse_list.append(temp_mse)
