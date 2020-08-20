@@ -136,4 +136,18 @@ class TSDataset(object):
         self.x = np.delete(self.x, where_to_delete, axis=0)
         self.y = np.delete(self.y, where_to_delete, axis=0)
 
+class DomainTSDataset:
+    
+    def __init__(self, dataset):
+        
+        self.x = dataset.x
+        self.y = dataset.y
+        self.d = dataset.file_idx
+        
+    def __getitem__(self, index):
+        return self.x[index], self.y[index], self.d[index]
+
+    def __len__(self):
+        return self.y.shape[0]
+
 
