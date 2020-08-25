@@ -106,6 +106,7 @@ domain_val_loader = DataLoader(domain_val_data, **params)
 domain_test_data = DomainTSDataset(test_data)
 domain_test_loader = DataLoader(domain_test_data, **params)
 
+x_dim = train_data.x.shape[-1]
 n_domains = np.max(train_data.file_idx)+1
 
 vrada = VRADA(x_dim, h_dim, h_dim_reg, z_dim, out_dim, n_domains, n_layers, device)

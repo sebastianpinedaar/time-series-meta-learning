@@ -15,20 +15,53 @@ def progressBar(current, total, barLength = 20):
 
     print('Progress: [%s%s] %d %%' % (arrow, spaces, percent), end='\r')
 
-#dataset_name = "POLLUTION"
-#window_size = 5
-#task_size = 25
-#hyperparams = [0.1, 2, 3, 100]
+def split_idx_50_50(domain_idx):
 
-#dataset_name = "HR"
-#window_size = 32
-#task_size = 25
-#hyperparams =  [0.05, 2, 3, 100]
+    domain_idx = np.array(domain_idx)
+    n_domains = np.max(domain_idx)+1
+    print(n_domains)
+
+    domain_change = [0]
+    for d in range(n_domains):
+
+        domain_change.append(np.sum(domain_idx==d))
+
+    domain_change = np.cumsum(domain_change)
+    print(domain_change)
+    train_idx = []
+    val_idx = []
+    test_idx = []
+
+    for i in range(len(domain_change)-1):
+
+        pos1 = domain_change[i]
+        pos2 = (domain_change[i]+ int(0.9*(domain_change[i+1]-domain_change[i])/2))
+       # pos22 = (domain_change[i]+ int(0.9*(domain_change[i+1]-domain_change[i])/2))
+        pos3 = (domain_change[i]+domain_change[i+1])/2
+        pos4 = domain_change[i+1]
+        
+        print(pos1)
+        train_idx.append(np.arange(pos1, pos2).astype(int))
+        val_idx.append(np.arange(pos2, pos3).astype(int))
+        test_idx.append(np.arange(pos3, pos4).astype(int))
+
+    
+    return train_idx, val_idx, test_idx
 
 dataset_name = "BATTERY"
-window_size = 20
-task_size = 25
-hyperparams = [0.05, 7, 1, 100]
+task_size = 50
+
+if dataset_name == "POLLUTION":
+    window_size = 5
+    hyperparams = [0.1, 2, 3, 100]
+
+elif dataset_name == "HR":
+    window_size = 32
+    hyperparams =  [0.05, 2, 3, 100]
+
+elif dataset_name == "BATTERY":
+    window_size = 20
+    hyperparams = [0.05, 7, 1, 100]
 
 train_data = pickle.load(  open( "../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
 validation_data = pickle.load( open( "../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
@@ -42,31 +75,48 @@ dim = train_data.x.shape[-1]
 new_train_data.x = new_train_data.x.reshape(-1, dim*window_size)
 test_data.x = test_data.x.reshape(-1, dim*window_size)
 
-evaluation_list = ["WO-RT", "50"]# W-RT, WO-RT, 50
+evaluation_list = ["50"]# W-RT, WO-RT, 50
 
 #50% evaluation
 
 if "50" in evaluation_list:
         
-    x_train = np.concatenate([new_train_data.x, test_data_ML.x[:test_size_ML//2].reshape(-1, window_size*dim)], axis=0)
-    y_train = np.concatenate([new_train_data.y, test_data_ML.y[:test_size_ML//2].reshape(-1,1)], axis=0)
+    #x_train = np.concatenate([new_train_data.x, test_data_ML.x[:test_size_ML//2].reshape(-1, window_size*dim)], axis=0)
+    #y_train = np.concatenate([new_train_data.y, test_data_ML.y[:test_size_ML//2].reshape(-1,1)], axis=0)
 
-    x_test = test_data_ML.x[test_size_ML//2:].reshape(-1, window_size*dim)
-    y_test = test_data_ML.y[test_size_ML//2:].reshape(-1, 1)
+    #x_test = test_data_ML.x[test_size_ML//2:].reshape(-1, window_size*dim)
+    #y_test = test_data_ML.y[test_size_ML//2:].reshape(-1, 1)
 
-    model = xgb.XGBRegressor(learning_rate=hyperparams[0],
-                        max_depth=hyperparams[1],
-                        min_child_weight=hyperparams[2],
-                        n_estimators=hyperparams[3])
+    train_idx, val_idx, test_idx = split_idx_50_50(test_data.file_idx)
 
-    model.fit(x_train, y_train)
-    y_pred = model.predict(x_test)
+    n_domains = np.max(test_data.file_idx)+1
+    domain_mae_list = []
+    domain_mse_list = []
 
-    mae_50pct = mae(y_pred, y_test)
-    mse_50pct = mse(y_pred, y_test)
+    for domain in range(n_domains):
+        print(domain)
+        train_idx_ = np.concatenate([train_idx[domain], val_idx[domain]])
 
-    print("Mae withtout retraining (50pct):", mae_50pct)
-    print("mse without retraining (50pct):", mse_50pct)
+        x_train = np.concatenate([train_data.x.reshape(-1, window_size*dim), test_data.x[train_idx_].reshape(-1, window_size*dim)])
+        y_train = np.concatenate([train_data.y.reshape(-1,1), test_data.y[train_idx_].reshape(-1,1)])
+
+        x_test = test_data.x[test_idx[domain]].reshape(-1, window_size*dim)
+        y_test = test_data.y[test_idx[domain]].reshape(-1,1)
+
+        model = xgb.XGBRegressor(learning_rate=hyperparams[0],
+                            max_depth=hyperparams[1],
+                            min_child_weight=hyperparams[2],
+                            n_estimators=hyperparams[3])
+
+        model.fit(x_train, y_train)
+        y_pred = model.predict(x_test)
+
+        domain_mae_list.append(mae(y_pred, y_test))
+        domain_mse_list.append(mse(y_pred, y_test))
+        print(mae(y_pred, y_test))
+
+    print("Mae withtout retraining (50pct):", np.mean(domain_mae_list))
+    print("mse without retraining (50pct):", np.mean(domain_mse_list))
 
 #evaluation without retraining
 
@@ -77,11 +127,15 @@ if "WO-RT" in evaluation_list:
                         min_child_weight=hyperparams[2],
                         n_estimators=hyperparams[3])
 
-    model.fit(new_train_data.x, new_train_data.y)
-    y_pred = model.predict(test_data_ML.x.reshape(-1, dim*window_size))
+    #model.fit(new_train_data.x, new_train_data.y)
+    model.fit(train_data.x.reshape(-1, dim*window_size), train_data.y.reshape(-1, 1))
+    #y_pred = model.predict(test_data_ML.x.reshape(-1, dim*window_size))
+    y_pred = model.predict(test_data.x.reshape(-1, dim*window_size))
 
-    mae_wo_retraining = mae(y_pred, test_data_ML.y.reshape(-1, 1))
-    mse_wo_retraining = mse(y_pred, test_data_ML.y.reshape(-1, 1))
+    #mae_wo_retraining = mae(y_pred, test_data_ML.y.reshape(-1, 1))
+    #mse_wo_retraining = mse(y_pred, test_data_ML.y.reshape(-1, 1))
+    mae_wo_retraining = mae(y_pred, test_data.y.reshape(-1, 1))
+    mse_wo_retraining = mse(y_pred, test_data.y.reshape(-1, 1))
 
     print("Mae withtout retraining (wo-rt):", mae_wo_retraining)
     print("mse without retraining (wo-rt):", mse_wo_retraining)

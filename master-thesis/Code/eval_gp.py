@@ -10,7 +10,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel,  DotProduct,  RationalQuadratic 
 from utils import progressBar
 
-dataset_name = "HR"
+dataset_name = "POLLUTION"
 task_size = 50
 
 
@@ -45,7 +45,7 @@ accumulated_mse = 0
 
 print(test_size_ML, " points to process...")
 horizon = 10
-for i in range(test_size_ML-horizon-1):
+for i in range(0, test_size_ML-horizon-1, test_size_ML//100):
 
 
     x_train = test_data_ML.x[i].reshape(-1, window_size*dim)

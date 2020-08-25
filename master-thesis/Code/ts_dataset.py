@@ -45,12 +45,14 @@ class TSDataset(object):
         
         self.task_size = task_size
         self.dim = self.x.shape[-1]
-        self.file_idx = [file_counter]*self.x.shape[0]
         self.mode = mode
 
         if filter:   
             self.filter_data()
 
+
+        self.file_idx = [file_counter]*self.x.shape[0]
+        
         print("x shape:", self.x.shape)
         print("y shape:", self.y.shape)
  
