@@ -10,7 +10,7 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel, ConstantKernel,  DotProduct,  RationalQuadratic 
 from utils import progressBar
 
-dataset_name = "POLLUTION"
+dataset_name = "HR"
 task_size = 50
 
 

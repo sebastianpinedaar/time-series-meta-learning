@@ -140,16 +140,36 @@ class TSDataset(object):
 
 class DomainTSDataset:
     
-    def __init__(self, dataset):
+    def __init__(self, dataset = None, x=[], y=[], d=[]):
         
-        self.x = dataset.x
-        self.y = dataset.y
-        self.d = dataset.file_idx
+        
+        if dataset is not None:
+
+            self.x = dataset.x
+            self.y = dataset.y
+            self.d = dataset.file_idx
+
+        else:
+
+            self.x = np.array(x)
+            self.y = np.array(y)
+            self.d = np.array(d)
+
+
         
     def __getitem__(self, index):
         return self.x[index], self.y[index], self.d[index]
 
     def __len__(self):
         return self.y.shape[0]
+
+    def __add__(self, other):
+
+        object_copy = copy.deepcopy(self)
+        object_copy.x = np.concatenate([object_copy.x, other.x], axis=0)
+        object_copy.y = np.concatenate([object_copy.y, other.y], axis=0)
+        object_copy.d = np.concatenate([object_copy.d, other.d], axis=0)
+        
+        return object_copy
 
 

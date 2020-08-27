@@ -72,3 +72,36 @@ def apply_rocket_kernels(sktime_dataset, rocket):
     data_features = np.concatenate(data_features, axis=0)
     
     return data_features
+
+def split_idx_50_50(domain_idx):
+
+    domain_idx = np.array(domain_idx)
+    n_domains = np.max(domain_idx)+1
+    print(n_domains)
+
+    domain_change = [0]
+    for d in range(n_domains):
+
+        domain_change.append(np.sum(domain_idx==d))
+
+    domain_change = np.cumsum(domain_change)
+    print(domain_change)
+    train_idx = []
+    val_idx = []
+    test_idx = []
+
+    for i in range(len(domain_change)-1):
+
+        pos1 = domain_change[i]
+        pos2 = (domain_change[i]+ int(0.9*(domain_change[i+1]-domain_change[i])/2))
+       # pos22 = (domain_change[i]+ int(0.9*(domain_change[i+1]-domain_change[i])/2))
+        pos3 = (domain_change[i]+domain_change[i+1])/2
+        pos4 = domain_change[i+1]
+        
+        print(pos1)
+        train_idx.append(np.arange(pos1, pos2).astype(int))
+        val_idx.append(np.arange(pos2, pos3).astype(int))
+        test_idx.append(np.arange(pos3, pos4).astype(int))
+
+    
+    return train_idx, val_idx, test_idx
