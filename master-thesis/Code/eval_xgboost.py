@@ -100,6 +100,9 @@ if "50" in evaluation_list:
         x_train = np.concatenate([train_data.x.reshape(-1, window_size*dim), test_data.x[train_idx_].reshape(-1, window_size*dim)])
         y_train = np.concatenate([train_data.y.reshape(-1,1), test_data.y[train_idx_].reshape(-1,1)])
 
+        #x_train = test_data.x[train_idx_].reshape(-1, window_size*dim)
+        #y_train = test_data.y[train_idx_].reshape(-1,1)
+
         x_test = test_data.x[test_idx[domain]].reshape(-1, window_size*dim)
         y_test = test_data.y[test_idx[domain]].reshape(-1,1)
 
@@ -110,6 +113,8 @@ if "50" in evaluation_list:
 
         model.fit(x_train, y_train)
         y_pred = model.predict(x_test)
+
+        pd.DataFrame({"TRUTH":list(y_test.reshape(-1)), "PRED_XGBOOST": list(y_pred.reshape(-1))}).to_csv("PRED_50_XGBOOST_D"+str(domain)+"_"+dataset_name+".csv")
 
         domain_mae_list.append(mae(y_pred, y_test))
         domain_mse_list.append(mse(y_pred, y_test))

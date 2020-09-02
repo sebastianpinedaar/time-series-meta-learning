@@ -5,18 +5,19 @@ import os
 import keras
 import copy
 import pandas as pd
+
+sys.path.insert(1, "TSRegression")
 from utils.regressor_tools import process_data, fit_regressor, calculate_regression_metrics
 from models.deep_learning import resnet
 from sklearn.metrics import mean_absolute_error as mae
 from sklearn.metrics import mean_squared_error as mse
 from keras import regularizers
 
-sys.path.insert(1, "TSRegression")
 
 #dataset_names = [("POLLUTION", 5, 50), ("HR", 32, 50), ("BATTERY", 20, 50)]
 #dataset_names = [("HR", 32, 50)]
-#dataset_names = [("POLLUTION", 5, 50)]
-dataset_names = [("BATTERY", 20, 50)]
+dataset_names = [("POLLUTION", 5, 50)]
+#dataset_names = [("BATTERY", 20, 50)]
 output_directory = "output/"
 regressor_name = "resnet"
 verbose=True
@@ -27,7 +28,7 @@ metrics = ["mae"]
 n_trials = 3
 lr =  0.000010
 mode = "WRT-HYP"
-l2 = 0.0
+l2 = 0.0001
 
 def freeze_model (model, no_frozen=[-1]):
 

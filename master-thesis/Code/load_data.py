@@ -272,7 +272,7 @@ def preprocess_batteries(data, var):
 def load_battery_data(window_size, task_size, stride=1, mode="meta-learning", standarize=True, normalize=True):
 
     path = "C:/Users/Sebastian/Documents/Data Analytics Master/Semester4-Thesis/Datasets/Battery-data/vw/DataLake/DataLake/"
-    var = ["U", "T", "I", "Q"]
+    var = [ "T", "I", "Q", "U"]
     n_files = 96
 
     folders = os.listdir(path)

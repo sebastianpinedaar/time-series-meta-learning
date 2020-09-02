@@ -1,0 +1,31 @@
+conda activate pytorch12
+
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.01 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file hyp_model.pt
+
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.01 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 8
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 8
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 8
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 8
+
+python eval_base_models.py --model LSTM --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.01 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 15
+python eval_base_models.py --model LSTM --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 15
+python eval_base_models.py --model LSTM --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 15
+python eval_base_models.py --model LSTM --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 8
+
+python eval_base_models.py --model FCN --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.01 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 15
+python eval_base_models.py --model FCN --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 15
+python eval_base_models.py --model FCN --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 15
+python eval_base_models.py --model FCN --dataset HR --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file hyp_model.pt --patience_stopping 15
+
+python eval_base_models.py --model LSTM --dataset BATTERY --lower_trial 0 --upper_trial 3 --learning_rate 0.01 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file hyp_model.pt
+
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.01 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt
+python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file hyp_model.pt
