@@ -15,55 +15,18 @@ from vrada import VRADA
 from ts_dataset import DomainTSDataset
 from pytorchtools import EarlyStopping
 from ts_transform import split_idx_50_50
+import argparse
 
 sys.path.insert(1, "DANN_py3")
 
-mode = "EVAL-50" #HYP/EVAL
-capacity = "LOW"
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-meta_info = [  ("POLLUTION", 5, 50, 14), ("HR", 32, 50, 13), ("BATTERY", 20, 50, 3)]
-meta_info = [ ("POLLUTION", 5, 50, 14)]
 
 
-lambda_per_dataset = {"POLLUTION-LOW": 0.1, "HR-LOW": 0.01, "BATTERY-LOW":0.01,
-                  "POLLUTION-HIGH":0.001, "HR-HIGH": 0.1, "BATTERY-HIGH":0.0001}
+def step(vrada, data_iter, len_dataloader, epochs = 500, epoch = 0, lambda1 = 0.1,  optimizer = None, loss = mae, is_train=False):
 
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-output_dim = 1
-
-if capacity == "HIGH":
-    h_dim = 100
-    z_dim = 100
-    h_dim_reg = 50
-elif capacity == "LOW":
-    h_dim = 50 #100
-    z_dim = 16 #100
-    h_dim_reg = 25 #50
-
-else:
-    raise Exception("Capacity is not well specified.")
-   
-n_layers =  1
-out_dim = 1
-n_epochs = epochs = 500
-clip = 10
-learning_rate = 3e-4
-learning_rate = 0.00001
-batch_size = 256
-#seed = 128
-print_every = 100
-save_every = 10
-patience_stopping = 10
-params = {'batch_size': batch_size,
-          'shuffle': True,
-          'num_workers': 0}
-
-lambda1 = 0.1
-horizon = 10
-
-
-def step(vrada, data_iter, len_dataloader, epoch = 0, lambda1 = 0.1,  is_train=False):
+    loss_regression = loss
+    loss_domain = torch.nn.NLLLoss()
 
     if is_train:
         vrada.train()
@@ -75,7 +38,7 @@ def step(vrada, data_iter, len_dataloader, epoch = 0, lambda1 = 0.1,  is_train=F
     i = 0
     while i < len_dataloader:
 
-        p = float(i + epoch * len_dataloader) / n_epochs / len_dataloader
+        p = float(i + epoch * len_dataloader) / epochs / len_dataloader
         alpha = 2. / (1. + np.exp(-10 * p)) - 1
 
         # training model using source data
@@ -88,6 +51,7 @@ def step(vrada, data_iter, len_dataloader, epoch = 0, lambda1 = 0.1,  is_train=F
         x = torch.tensor(x).float().to(device)
         y = torch.tensor(y).float().to(device)
         d = torch.tensor(d).long().to(device)
+        batch_size = x.shape[0]
 
         regressor_output, domain_class_output, kld_loss, nll_loss = vrada(x, alpha)       
         err_reg = loss_regression(regressor_output, y.to(device) )
@@ -109,9 +73,12 @@ def step(vrada, data_iter, len_dataloader, epoch = 0, lambda1 = 0.1,  is_train=F
         
 
 
-def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, monitor_stopping = True):
+def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, early_stopping = None, learning_rate = 0.001, epochs = 500 , monitor_stopping = True):
 
-    for epoch in range(n_epochs):
+    optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
+    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = early_stopping.patience//4, verbose=True)
+
+    for epoch in range(epochs):
 
         len_train_loader = len(domain_train_loader)
         train_iter = iter(domain_train_loader)
@@ -119,10 +86,10 @@ def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, monitor_
         len_val_loader = len(domain_val_loader)
         val_iter = iter(domain_val_loader)
 
-        alpha, mean_err_reg_train = step(vrada, train_iter, len_train_loader, epoch, lambda1, True)
+        alpha, mean_err_reg_train = step(vrada, train_iter, len_train_loader, epochs, epoch, lambda1, optimizer, mae, True)
 
         with torch.no_grad():
-            alpha, mean_err_reg_val= step(vrada, val_iter, len_val_loader)
+            alpha, mean_err_reg_val= step(vrada, val_iter, len_val_loader, epochs)
 
         print ('epoch: %d, \n TRAINING -> mean_err: %f' % (epoch, mean_err_reg_train))
         print ('epoch: %d, \n VAL -> mean_err: %f' % (epoch, mean_err_reg_val))
@@ -145,7 +112,7 @@ def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, monitor_
     return epoch+1
 
 
-def test(vrada, domain_test_loader):
+def test(vrada, domain_test_loader,  output_directory, model_file):
 
     len_test_loader = len(domain_test_loader)
     test_iter = iter(domain_test_loader)
@@ -172,9 +139,61 @@ def freeze_vrada(vrada):
     
 
 
-for dataset_name, window_size, task_size, x_dim in meta_info:
+def main(args):
 
-    for trial in range(0,3):
+    meta_info = {"POLLUTION": [5, 50, 14],
+                "HR": [32, 50, 13],
+                "BATTERY": [20, 50, 3] }
+
+    #variables
+    dataset_name = args.dataset 
+    mode = args.mode 
+    save_model_file = args.save_model_file
+    load_model_file = args.load_model_file
+    lower_trial = args.lower_trial
+    upper_trial = args.upper_trial
+    learning_rate = args.learning_rate
+    regularization_penalty = args.regularization_penalty
+    model_name = args.model
+    is_test = args.is_test
+    patience_stopping = args.patience_stopping
+    capacity = args.capacity
+    lambda1 = args.lambda1
+
+
+    lambda_per_dataset = {"POLLUTION-LOW": 0.1, "HR-LOW": 0.01, "BATTERY-LOW":0.01,
+                    "POLLUTION-HIGH":0.001, "HR-HIGH": 0.1, "BATTERY-HIGH":0.0001}
+
+    lambda1 = lambda_per_dataset[dataset_name+"-"+capacity]
+
+    if capacity == "HIGH":
+        h_dim = 100
+        z_dim = 100
+        h_dim_reg = 50
+    elif capacity == "LOW":
+        h_dim = 50 #100
+        z_dim = 16 #100
+        h_dim_reg = 25 #50
+
+    else:
+        raise Exception("Capacity is not well specified.")
+    
+    n_layers =  1
+    out_dim = 1
+    epochs = 500
+    clip = 10
+    learning_rate = 3e-4
+    batch_size = 256
+    patience_stopping = 10
+    params = {'batch_size': batch_size,
+            'shuffle': True,
+            'num_workers': 0}
+
+    horizon = 10
+    window_size, task_size, x_dim = meta_info[dataset_name]
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    for trial in range(lower_trial,upper_trial):
         
         output_directory = "../Models/"+dataset_name+"_H"+str(h_dim)+"_Z"+str(z_dim)+"/"+str(trial)+"/"
         try:
@@ -226,7 +245,7 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
                 train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1) 
                 test(vrada, domain_val_loader)
 
-        elif mode =="EVAL":
+        elif mode =="WOFT":
 
             print("MODE:", mode)
             f=open(output_directory+"/results.txt", "a+")
@@ -240,12 +259,13 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
             vrada.cuda()
 
             optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
-            train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1)
-            test(vrada, domain_test_loader)
-            test(vrada, domain_test_loader)
-            test(vrada, domain_test_loader)
 
-        elif mode == "EVAL-50":
+            train(vrada, domain_train_loader, domain_val_loader, lambda1, early_stopping, learning_rate, epochs )
+            test(vrada, domain_test_loader,output_directory, new_model_file)
+            test(vrada, domain_test_loader,output_directory, new_model_file)
+            test(vrada, domain_test_loader,output_directory, new_model_file)
+
+        elif mode == "50":
 
             print("MODE:", mode)
             f=open(output_directory+"/results.txt", "a+")
@@ -260,6 +280,7 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
             n_domains_in_train = np.max(train_data.file_idx)+1
 
             test_loss_list = []
+            initial_test_loss_list = []
 
             for domain in range(n_domains_in_test):
                 
@@ -297,14 +318,19 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
                 freeze_vrada(vrada)
                 learning_rate = 0.00001
                 optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
-                train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1)
-                test_loss_list.append(test(vrada, domain_test_loader))
-                test_loss_list.append(test(vrada, domain_test_loader))
-                test_loss_list.append(test(vrada, domain_test_loader))
+                initial_test_loss_list.append(test(vrada, domain_test_loader, output_directory, model_file))
+                initial_test_loss_list.append(test(vrada, domain_test_loader, output_directory, model_file))
+                initial_test_loss_list.append(test(vrada, domain_test_loader, output_directory, model_file))               
+                train(vrada, domain_train_loader, domain_val_loader, lambda1, early_stopping, learning_rate, epochs )
+                test_loss_list.append(test(vrada, domain_test_loader, output_directory, new_model_file))
+                test_loss_list.append(test(vrada, domain_test_loader, output_directory, new_model_file))
+                test_loss_list.append(test(vrada, domain_test_loader, output_directory, new_model_file))
 
             total_loss = np.mean(test_loss_list)
+            initial_loss = np.mean(initial_test_loss_list)
             f=open(output_directory+"/results.txt", "a+")
             f.write("Total error :%f"% total_loss)
+            f.write("Initial Total error :%f"% initial_loss)
             f.write("\n")
             f.close()
 
@@ -312,7 +338,7 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
 
 
 
-        elif mode == "EVAL-WFT":
+        elif mode == "WFT":
 
             print("MODE:", mode)
             f=open(output_directory+"/results.txt", "a+")
@@ -327,6 +353,7 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
             patience = 5
             n_epochs = 20
             test_loss_list = []
+            initial_test_loss_list = []
 
             for task_id in range(0, (n_tasks-horizon-1), n_tasks//100):
                 
@@ -355,14 +382,37 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
                 domain_test_loader = DataLoader(domain_test_data, **params)              
 
                 optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
-                train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1)
-                test_loss_list.append( test(vrada, domain_test_loader))
+
+                initial_test_loss_list.append( test(vrada, domain_test_loader, output_directory, new_model_file))
+                train(vrada, domain_train_loader, domain_val_loader, lambda1, early_stopping, learning_rate, epochs )
+                test_loss_list.append( test(vrada, domain_test_loader, output_directory, new_model_file))
                 print(np.mean(test_loss_list))
 
             total_loss = np.mean(test_loss_list)
+            initial_total_loss = np.mean(initial_test_loss_list)
             f=open(output_directory+"/results.txt", "a+")
+            f.write("Initial Total error :%f"% initial_total_loss)
             f.write("Total error :%f"% total_loss)
             f.write("\n")
             f.close()
+    
+if __name__ == '__main__':
 
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('--dataset', type=str, help='dataset to use, possible: POLLUTION, HR, BATTERY', default="POLLUTION")
+    argparser.add_argument('--mode', type=str, help='evaluation mode, possible: WOFT, WFT, 50, HYP', default="WOFT")
+    argparser.add_argument('--model', type=str, help='model architecture, possible: FCN, LSTM', default="LSTM")
+    argparser.add_argument('--save_model_file', type=str, help='name to save the model in memory', default="model.pt")
+    argparser.add_argument('--load_model_file', type=str, help='name to load the model in memory', default="model.pt")
+    argparser.add_argument('--lower_trial', type=int, help='identifier of the lower trial value', default=0)
+    argparser.add_argument('--upper_trial', type=int, help='identifier of the upper trial value', default=3)
+    argparser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
+    argparser.add_argument('--regularization_penalty', type=float, help='regularization penaly', default=0.0001)
+    argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)
+    argparser.add_argument('--patience_stopping', type=int, help='patience for early stopping', default=20)
+    argparser.add_argument('--lambda1', type=float, help='lambda value for the loss function', default=0.01)
+    argparser.add_argument('--capacity', type=str, help='Capacity of the model', default="LOW")
 
+    args = argparser.parse_args()
+
+    main(args)

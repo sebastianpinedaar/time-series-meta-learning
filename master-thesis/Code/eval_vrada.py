@@ -19,11 +19,12 @@ from ts_transform import split_idx_50_50
 sys.path.insert(1, "DANN_py3")
 
 mode = "EVAL-50" #HYP/EVAL
-capacity = "LOW"
+capacity = "HIGH"
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 meta_info = [  ("POLLUTION", 5, 50, 14), ("HR", 32, 50, 13), ("BATTERY", 20, 50, 3)]
-meta_info = [ ("POLLUTION", 5, 50, 14)]
+#meta_info = [ ("POLLUTION", 5, 50, 14), ("HR", 32, 50, 13)]
+#meta_info = [("BATTERY", 20, 50, 3)]
 
 
 lambda_per_dataset = {"POLLUTION-LOW": 0.1, "HR-LOW": 0.01, "BATTERY-LOW":0.01,
@@ -61,7 +62,7 @@ params = {'batch_size': batch_size,
 
 lambda1 = 0.1
 horizon = 10
-
+n_epochs = 20
 
 def step(vrada, data_iter, len_dataloader, epoch = 0, lambda1 = 0.1,  is_train=False):
 
@@ -258,8 +259,10 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
             train_idx, val_idx, test_idx = split_idx_50_50(test_data.file_idx)
             n_domains_in_test = np.max(test_data.file_idx)+1
             n_domains_in_train = np.max(train_data.file_idx)+1
+            epochs = 20
 
             test_loss_list = []
+            initial_test_loss_list = []
 
             for domain in range(n_domains_in_test):
                 
@@ -297,19 +300,22 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
                 freeze_vrada(vrada)
                 learning_rate = 0.00001
                 optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
+
+                initial_test_loss_list.append(test(vrada, domain_test_loader))
+                initial_test_loss_list.append(test(vrada, domain_test_loader))
+                initial_test_loss_list.append(test(vrada, domain_test_loader))    
                 train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1)
                 test_loss_list.append(test(vrada, domain_test_loader))
                 test_loss_list.append(test(vrada, domain_test_loader))
                 test_loss_list.append(test(vrada, domain_test_loader))
 
             total_loss = np.mean(test_loss_list)
+            initial_loss = np.mean(initial_test_loss_list)
             f=open(output_directory+"/results.txt", "a+")
             f.write("Total error :%f"% total_loss)
+            f.write("Initial Total error :%f"% initial_loss)
             f.write("\n")
             f.close()
-
-
-
 
 
         elif mode == "EVAL-WFT":
@@ -327,10 +333,10 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
             patience = 5
             n_epochs = 20
             test_loss_list = []
+            initial_test_loss_list = []
 
             for task_id in range(0, (n_tasks-horizon-1), n_tasks//100):
                 
-                n_epochs = 20
                 early_stopping = EarlyStopping(patience=patience_stopping, model_file=new_model_file, verbose=True)
                 vrada = VRADA(x_dim, h_dim, h_dim_reg, z_dim, out_dim, n_domains, n_layers, device)
                 vrada.cuda()
@@ -355,12 +361,16 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
                 domain_test_loader = DataLoader(domain_test_data, **params)              
 
                 optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
+
+                initial_test_loss_list.append( test(vrada, domain_test_loader))
                 train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1)
                 test_loss_list.append( test(vrada, domain_test_loader))
                 print(np.mean(test_loss_list))
 
             total_loss = np.mean(test_loss_list)
+            initial_total_loss = np.mean(initial_test_loss_list)
             f=open(output_directory+"/results.txt", "a+")
+            f.write("Initial Total error :%f"% initial_total_loss)
             f.write("Total error :%f"% total_loss)
             f.write("\n")
             f.close()

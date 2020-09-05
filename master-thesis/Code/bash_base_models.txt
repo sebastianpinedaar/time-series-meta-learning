@@ -1,5 +1,6 @@
 conda activate pytorch12
 
+#hyp
 python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.01 --mode WOFT --save_model_file hyp_model.pt
 python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt
 python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt
@@ -29,3 +30,20 @@ python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upp
 python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.001 --mode WOFT --save_model_file hyp_model.pt
 python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.0001 --mode WOFT --save_model_file hyp_model.pt
 python eval_base_models.py --model FCN --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file hyp_model.pt
+
+python eval_base_models.py --model LSTM --dataset POLLUTION --lower_trial 0 --upper_trial 3 --learning_rate 0.00001 --mode WOFT --save_model_file model.pt --patience_stopping 20 --is_test 1
+
+##wft
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 1 --epochs 20
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 1 --epochs 20
+
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 1 --epochs 20
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 1 --epochs 20
+
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 1 --epochs 20
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 1 --epochs 20
+
+
+
+
+
