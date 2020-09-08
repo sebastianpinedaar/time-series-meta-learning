@@ -76,7 +76,7 @@ def step(vrada, data_iter, len_dataloader, epochs = 500, epoch = 0, lambda1 = 0.
 def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, early_stopping = None, learning_rate = 0.001, epochs = 500 , monitor_stopping = True):
 
     optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
-    #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = early_stopping.patience//4, verbose=True)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = early_stopping.patience//4, verbose=True)
 
     for epoch in range(epochs):
 
@@ -93,6 +93,8 @@ def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, early_st
 
         print ('epoch: %d, \n TRAINING -> mean_err: %f' % (epoch, mean_err_reg_train))
         print ('epoch: %d, \n VAL -> mean_err: %f' % (epoch, mean_err_reg_val))
+
+        scheduler.step(mean_err_reg_val)
 
         #torch.save(my_net, '{0}/mnist_mnistm_model_epoch_{1}.pth'.format(model_root, epoch))
         #test(source_dataset_name, epoch)
@@ -112,7 +114,7 @@ def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, early_st
     return epoch+1
 
 
-def test(vrada, domain_test_loader,  output_directory, model_file):
+def test(vrada, domain_test_loader,  output_directory, model_file, verbose = True):
 
     len_test_loader = len(domain_test_loader)
     test_iter = iter(domain_test_loader)
@@ -124,10 +126,11 @@ def test(vrada, domain_test_loader,  output_directory, model_file):
 
     print("Regression error on test: %f"%(mean_err_reg_test))
 
-    f=open(output_directory+"/results.txt", "a+")
-    f.write("Test error :%f"% mean_err_reg_test)
-    f.write("\n")
-    f.close()
+    if verbose:
+        f=open(output_directory+"/results.txt", "a+")
+        f.write("Test error :%f"% mean_err_reg_test)
+        f.write("\n")
+        f.close()
 
     return mean_err_reg_test
 
@@ -154,12 +157,12 @@ def main(args):
     upper_trial = args.upper_trial
     learning_rate = args.learning_rate
     regularization_penalty = args.regularization_penalty
-    model_name = args.model
     is_test = args.is_test
     patience_stopping = args.patience_stopping
     capacity = args.capacity
     lambda1 = args.lambda1
-
+    epochs = args.epochs
+    learning_rate = args.learning_rate
 
     lambda_per_dataset = {"POLLUTION-LOW": 0.1, "HR-LOW": 0.01, "BATTERY-LOW":0.01,
                     "POLLUTION-HIGH":0.001, "HR-HIGH": 0.1, "BATTERY-HIGH":0.0001}
@@ -180,11 +183,8 @@ def main(args):
     
     n_layers =  1
     out_dim = 1
-    epochs = 500
     clip = 10
-    learning_rate = 3e-4
     batch_size = 256
-    patience_stopping = 10
     params = {'batch_size': batch_size,
             'shuffle': True,
             'num_workers': 0}
@@ -227,25 +227,7 @@ def main(args):
         loss_regression = mae
         loss_domain = torch.nn.NLLLoss()
 
-        if mode=="HYP":
-
-            for lambda1 in [0.1, 0.01, 0.001, 0.0001]:
-
-                model_file = output_directory+"model.pt"
-                early_stopping = EarlyStopping(patience=patience_stopping, model_file=model_file, verbose=True)
-                vrada = VRADA(x_dim, h_dim, h_dim_reg, z_dim, out_dim, n_domains, n_layers, device)
-                vrada.cuda()
-
-                optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
-                f=open(output_directory+"/results.txt", "a+")
-                f.write("Lambda :%f"% lambda1)
-                f.write("\n")
-                f.close()
-
-                train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1) 
-                test(vrada, domain_val_loader)
-
-        elif mode =="WOFT":
+        if mode =="WOFT":
 
             print("MODE:", mode)
             f=open(output_directory+"/results.txt", "a+")
@@ -267,14 +249,16 @@ def main(args):
 
         elif mode == "50":
 
+            assert save_model_file!=load_model_file, "Files cannot be the same"
+
             print("MODE:", mode)
             f=open(output_directory+"/results.txt", "a+")
             f.write("Mode :%s"% mode)
             f.write("\n")
             f.close()
 
-            new_model_file = output_directory+"50-model.pt"
-            model_file = output_directory+"model.pt"
+            new_model_file = output_directory+save_model_file
+            model_file = output_directory+load_model_file
             train_idx, val_idx, test_idx = split_idx_50_50(test_data.file_idx)
             n_domains_in_test = np.max(test_data.file_idx)+1
             n_domains_in_train = np.max(train_data.file_idx)+1
@@ -316,11 +300,11 @@ def main(args):
 
                 vrada.load_state_dict(torch.load(model_file))
                 freeze_vrada(vrada)
-                learning_rate = 0.00001
                 optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
                 initial_test_loss_list.append(test(vrada, domain_test_loader, output_directory, model_file))
                 initial_test_loss_list.append(test(vrada, domain_test_loader, output_directory, model_file))
-                initial_test_loss_list.append(test(vrada, domain_test_loader, output_directory, model_file))               
+                initial_test_loss_list.append(test(vrada, domain_test_loader, output_directory, model_file)) 
+                early_stopping(initial_test_loss_list[-1], vrada)             
                 train(vrada, domain_train_loader, domain_val_loader, lambda1, early_stopping, learning_rate, epochs )
                 test_loss_list.append(test(vrada, domain_test_loader, output_directory, new_model_file))
                 test_loss_list.append(test(vrada, domain_test_loader, output_directory, new_model_file))
@@ -334,10 +318,6 @@ def main(args):
             f.write("\n")
             f.close()
 
-
-
-
-
         elif mode == "WFT":
 
             print("MODE:", mode)
@@ -346,32 +326,44 @@ def main(args):
             f.write("\n")
             f.close()
 
-            new_model_file = output_directory+"temp_model_wft.pt"
-            model_file = output_directory+"model.pt"
+            assert save_model_file!=load_model_file, "Files cannot be the same"
+
+            new_model_file = output_directory+save_model_file
+            model_file = output_directory+load_model_file
 
             n_tasks, task_size, dim, channels = test_data_ML.x.shape
-            patience = 5
-            n_epochs = 20
             test_loss_list = []
             initial_test_loss_list = []
 
             for task_id in range(0, (n_tasks-horizon-1), n_tasks//100):
                 
-                n_epochs = 20
+
+                if is_test: 
+                    
+                    temp_x_train = test_data_ML.x[task_id][:int(task_size*0.8)]
+                    temp_y_train = test_data_ML.y[task_id][:int(task_size*0.8)]
+                    
+                    temp_x_val = test_data_ML.x[task_id][int(task_size*0.8):]
+                    temp_y_val = test_data_ML.y[task_id][int(task_size*0.8):]
+
+                    temp_x_test = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
+                    temp_y_test = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
+
+                else:
+                    temp_x_train = validation_data_ML.x[task_id][:int(task_size*0.8)]
+                    temp_y_train = validation_data_ML.y[task_id][:int(task_size*0.8)]
+                    
+                    temp_x_val = validation_data_ML.x[task_id][int(task_size*0.8):]
+                    temp_y_val = validation_data_ML.y[task_id][int(task_size*0.8):]
+
+                    temp_x_test = validation_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
+                    temp_y_test = validation_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)               
+
                 early_stopping = EarlyStopping(patience=patience_stopping, model_file=new_model_file, verbose=True)
                 vrada = VRADA(x_dim, h_dim, h_dim_reg, z_dim, out_dim, n_domains, n_layers, device)
                 vrada.cuda()
                 vrada.load_state_dict(torch.load(model_file))
                 freeze_vrada(vrada)
-                
-                temp_x_train = test_data_ML.x[task_id][:int(task_size*0.8)]
-                temp_y_train = test_data_ML.y[task_id][:int(task_size*0.8)]
-                
-                temp_x_val = test_data_ML.x[task_id][int(task_size*0.8):]
-                temp_y_val = test_data_ML.y[task_id][int(task_size*0.8):]
-
-                temp_x_test = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
-                temp_y_test = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
 
                 domain_train_data = DomainTSDataset(x = temp_x_train, y= temp_y_train, d = [0]*temp_x_train.shape[0])
                 domain_val_data = DomainTSDataset(x = temp_x_val, y=temp_y_val, d=[0]*temp_x_val.shape[0])
@@ -383,16 +375,19 @@ def main(args):
 
                 optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
 
-                initial_test_loss_list.append( test(vrada, domain_test_loader, output_directory, new_model_file))
+                initial_test_loss_list.append( test(vrada, domain_test_loader, output_directory, model_file, False))
+                early_stopping(initial_test_loss_list[-1], vrada)  
                 train(vrada, domain_train_loader, domain_val_loader, lambda1, early_stopping, learning_rate, epochs )
-                test_loss_list.append( test(vrada, domain_test_loader, output_directory, new_model_file))
+                test_loss_list.append( test(vrada, domain_test_loader, output_directory, new_model_file, False))
                 print(np.mean(test_loss_list))
 
             total_loss = np.mean(test_loss_list)
             initial_total_loss = np.mean(initial_test_loss_list)
             f=open(output_directory+"/results.txt", "a+")
-            f.write("Initial Total error :%f"% initial_total_loss)
-            f.write("Total error :%f"% total_loss)
+            f.write("Learning rate: %f \n" % learning_rate)
+            f.write("Initial Total error :%f \n"% initial_total_loss)
+            f.write("Total error :%f \n"% total_loss)
+            f.write("Standard deviation: %f \n" %np.std(test_loss_list))
             f.write("\n")
             f.close()
     
@@ -401,17 +396,17 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--dataset', type=str, help='dataset to use, possible: POLLUTION, HR, BATTERY', default="POLLUTION")
     argparser.add_argument('--mode', type=str, help='evaluation mode, possible: WOFT, WFT, 50, HYP', default="WOFT")
-    argparser.add_argument('--model', type=str, help='model architecture, possible: FCN, LSTM', default="LSTM")
     argparser.add_argument('--save_model_file', type=str, help='name to save the model in memory', default="model.pt")
     argparser.add_argument('--load_model_file', type=str, help='name to load the model in memory', default="model.pt")
     argparser.add_argument('--lower_trial', type=int, help='identifier of the lower trial value', default=0)
     argparser.add_argument('--upper_trial', type=int, help='identifier of the upper trial value', default=3)
-    argparser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
+    argparser.add_argument('--learning_rate', type=float, help='learning rate', default=3e-4)
     argparser.add_argument('--regularization_penalty', type=float, help='regularization penaly', default=0.0001)
     argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)
     argparser.add_argument('--patience_stopping', type=int, help='patience for early stopping', default=20)
     argparser.add_argument('--lambda1', type=float, help='lambda value for the loss function', default=0.01)
     argparser.add_argument('--capacity', type=str, help='Capacity of the model', default="LOW")
+    argparser.add_argument('--epochs', type=int, help='epochs', default=500)
 
     args = argparser.parse_args()
 
