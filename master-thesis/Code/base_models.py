@@ -37,6 +37,23 @@ class FCN(nn.Module):
         x = self.linear(x.squeeze())
         return x
 
+class ExtendedFCN(nn.Module):
+    def __init__(self, fcn, hidden, output_dim):
+        super().__init__()
+        self.hidden1 = fcn.linear.in_features
+        self.hidden2 = hidden
+        self.linear1 = nn.Linear(self.hidden1, self.hidden2)
+        self.linear2 = nn.Linear(self.hidden2, output_dim)
+        self.fcn = fcn
+    def forward(self, x):
+        x = self.fcn.conv1(x)
+        x = self.fcn.conv2(x)
+        x = self.fcn.conv3(x)
+        # apply Global Average Pooling 1D
+        x = self.fcn.global_pooling(x)
+        x = self.linear1(x.squeeze())
+        return x   
+
 class LSTMModel(nn.Module):
     
     def __init__(self, batch_size, seq_len, input_dim, n_layers, hidden_dim, output_dim, lin_hidden_dim = 100):
@@ -47,7 +64,7 @@ class LSTMModel(nn.Module):
         self.hidden_dim = hidden_dim
         self.batch_size = batch_size
         self.n_layers = n_layers
-        self.hidden = self.init_hidden()
+        #self.hidden = self.init_hidden()
         self.input_dim = input_dim
         
     def init_hidden(self):

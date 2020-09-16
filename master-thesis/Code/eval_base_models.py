@@ -7,7 +7,7 @@ import numpy as np
 from pytorchtools import count_parameters
 import torch.nn as nn
 import pickle
-from base_models import LSTMModel, FCN
+from base_models import LSTMModel, FCN, ExtendedFCN
 from torch.utils.data import Dataset, DataLoader
 from metrics import torch_mae as mae
 import argparse
@@ -64,7 +64,7 @@ def step(model, data_iter, len_dataloader, optimizer = None, loss = mae, is_trai
 
 def train(model, train_loader, val_loader, early_stopping, learning_rate = 0.001, epochs = 500, add_weight_decay = False, monitor_stopping = True):
 
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate) if ~add_weight_decay else optim.Adam(model.parameters(), lr=learning_rate, weight_decay = 1e-1)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate) if ~add_weight_decay else optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 10e-2)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = early_stopping.patience//4, verbose=True)
     
 
@@ -207,6 +207,7 @@ def main(args):
                 model = LSTMModel( batch_size=batch_size, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =1)
             elif model_name == "FCN":
                 model = FCN(time_steps = window_size,  channels=[input_dim, 128, 128, 128] , kernels=kernels)
+                
 
 
             model.cuda()
@@ -241,7 +242,7 @@ def main(args):
             test_loss_list = []
             initial_test_loss_list = []
 
-            for task_id in range(0, (n_tasks-horizon-1), n_tasks//100):
+            for task_id in range(0, (n_tasks-horizon-1), n_tasks//300):
                 
 
                 #check that all files blong to the same domain
@@ -284,23 +285,27 @@ def main(args):
                 elif model_name == "FCN":
                     model = FCN(time_steps = window_size, channels=[input_dim, 128, 128, 128], kernels=kernels )
                     
-                model.cuda()
+                
                 model.load_state_dict(torch.load(load_model_file_))
-
-                if model_name == "FCN":
-                    pass
-                    #freeze_fcn(model)
-                    #
 
 
                 train_loader = DataLoader(SimpleDataset(x=temp_x_train, y=temp_y_train), **params)
                 val_loader = DataLoader(SimpleDataset(x=temp_x_val, y=temp_y_val), **params)
                 test_loader = DataLoader(SimpleDataset(x=temp_x_test, y=temp_y_test), **params)
 
+                model.cuda()
                 initial_loss = test(model, test_loader, output_directory, load_model_file_, True)
+
+                if model_name == "FCN":
+                    #pass
+                    freeze_fcn(model)
+                    #model = ExtendedFCN(model, 20,1)
+                    #model.cuda()
+
                 early_stopping(initial_loss, model)
                 train(model, train_loader, val_loader, early_stopping, learning_rate, epochs, add_weight_decay=True) 
                 loss = test(model, test_loader, output_directory, save_model_file_, True)
+                print(loss)
 
                 test_loss_list.append(loss)
                 initial_test_loss_list.append(initial_loss)
@@ -370,7 +375,10 @@ def main(args):
                     temp_train_data.x = np.transpose(temp_train_data.x, [0,2,1])
                     temp_test_data.x = np.transpose(temp_test_data.x, [0,2,1])
                     temp_val_data.x = np.transpose(temp_val_data.x, [0,2,1])
-                 
+                    freeze_fcn(model)
+                         
+                     
+                                
                 model.load_state_dict(torch.load(load_model_file_))
                 model.cuda()
 
@@ -380,7 +388,7 @@ def main(args):
 
                 initial_loss = test(model, temp_test_loader, output_directory, load_model_file_, False)
                 train(model, temp_train_loader, temp_val_loader, early_stopping, learning_rate, epochs) 
-                loss = test(model, temp_test_loader, output_directory, save_model_file_, False)
+                loss = test(model, temp_test_loader, output_directory, save_model_file_, True)
 
                 initial_test_loss_list.append(initial_loss)
                 test_loss_list.append(loss)
