@@ -13,3 +13,6 @@ master-thesis/Code/codats/
 master-thesis/Code/VariationalRecurrentNeuralNetwork/
 master-thesis/Code/DANN_py3/
 master-thesis/Results/Plots
+master-thesis/Code/meta-learning/temp
+master-thesis/Code/meta-learning/.vscode
+master-thesis/Code/meta-learning/.ipynb_checkpoints

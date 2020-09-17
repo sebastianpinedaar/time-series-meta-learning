@@ -7,9 +7,9 @@ import torch.optim as optim
 import pickle
 import sys
 from collections import defaultdict, namedtuple
-from collections import OrderedDict
-from torch.nn import _VF
-from torch.nn.utils.rnn import PackedSequence
+from metalearner import MetaLearner
+from meta_base_models import LSTMModel, Task
+import os
 
 sys.path.insert(1, "..")
 
@@ -17,234 +17,12 @@ from ts_dataset import TSDataset
 from metrics import torch_mae as mae
 from torch.nn.utils.clip_grad import clip_grad_norm_
 import torch.nn.functional as F
-
-
-dataset_name = "HR"
-dataset_name = "POLLUTION"
-model_name = "LSTM"
-
-task_size = 50
-batch_size = 64
-output_dim = 1
-
-batch_size = 20
-horizon = 10
-slow_lr = 10e-5
-fast_lr = 10e-4
-n_inner_iter = 1
-##test
-
-if dataset_name == "HR":
-    window_size = 32
-    input_dim = 13
-elif dataset_name == "POLLUTION":
-    window_size = 5
-    input_dim = 14
-Task = namedtuple('Task', ['x', 'y'])
-
-
-def to_torch(numpy_tensor):
-    
-    return torch.tensor(numpy_tensor).float().cuda()
-
-def get_grad_norm(parameters, norm_type=2):
-    if isinstance(parameters, torch.Tensor):
-        parameters = [parameters]
-    parameters = list(filter(lambda p: p.grad is not None, parameters))
-    norm_type = float(norm_type)
-    total_norm = 0
-    for p in parameters:
-        param_norm = p.grad.data.norm(norm_type)
-        total_norm += param_norm.item() ** norm_type
-    total_norm = total_norm ** (1. / norm_type)
-
-    return total_norm
+from pytorchtools import EarlyStopping, to_torch, get_grad_norm
+import argparse
 
 
 
-
-class CustomLSTM(nn.LSTM):
-    def __init__(self, *args, **kwargs):
-        super(CustomLSTM, self).__init__( *args, **kwargs)  
-        
-    def forward(self, input, params = None, hx=None, embeddings = None):  # noqa: F811
-        
-            if params is None:
-                params = [(lambda wn: getattr(self, wn) if hasattr(self, wn) else None)(wn)] 
-                
-            
-            orig_input = input
-            # xxx: isinstance check needs to be in conditional for TorchScript to compile
-            if isinstance(orig_input, PackedSequence):
-                input, batch_sizes, sorted_indices, unsorted_indices = input
-                max_batch_size = batch_sizes[0]
-                max_batch_size = int(max_batch_size)
-            else:
-                batch_sizes = None
-                max_batch_size = input.size(0) if self.batch_first else input.size(1)
-                sorted_indices = None
-                unsorted_indices = None
-
-            if hx is None:
-                num_directions = 2 if self.bidirectional else 1
-                zeros = torch.zeros(self.num_layers * num_directions,
-                                    max_batch_size, self.hidden_size,
-                                    dtype=input.dtype, device=input.device)
-                hx = (zeros, zeros)
-            else:
-                # Each batch of the hidden state should match the input sequence that
-                # the user believes he/she is passing in.
-                hx = self.permute_hidden(hx, sorted_indices)
-
-            self.check_forward_args(input, hx, batch_sizes)
-            if batch_sizes is None:
-                result = _VF.lstm(input, hx, params, self.bias, self.num_layers,
-                                  self.dropout, self.training, self.bidirectional, self.batch_first)
-            else:
-                result = _VF.lstm(input, batch_sizes, hx, params, bias,
-                                  self.num_layers, self.dropout, self.training, self.bidirectional)
-            output = result[0]
-            hidden = result[1:]
-            # xxx: isinstance check needs to be in conditional for TorchScript to compile
-            if isinstance(orig_input, PackedSequence):
-                output_packed = PackedSequence(output, batch_sizes, sorted_indices, unsorted_indices)
-                return output_packed, self.permute_hidden(hidden, unsorted_indices)
-            else:
-                return output, self.permute_hidden(hidden, unsorted_indices)
-
-
-
-class LSTMModel(nn.Module):
-    
-    def __init__(self, batch_size, seq_len, input_dim, n_layers, hidden_dim, output_dim, lin_hidden_dim = 100):
-        super(LSTMModel, self).__init__()
-
-        #self.lstm = nn.CustomLSTM(input_dim, hidden_dim, n_layers, batch_first=True)
-        #self.linear = nn.Linear(hidden_dim, output_dim)#
-        self.hidden_dim = hidden_dim
-        self.batch_size = batch_size
-        self.n_layers = n_layers
-        #self.hidden = self.init_hidden()
-        self.input_dim = input_dim
-        self.features = torch.nn.Sequential(OrderedDict([
-            ("lstm",  CustomLSTM(input_dim, hidden_dim, n_layers, batch_first=True)),
-            ("linear", nn.Linear(hidden_dim, output_dim))]))
-        
-
-    def forward(self, x, params):
-        
-        if params is None:
-            params = OrderedDict(self.named_parameters())
-
-
-        input = x
-        for layer_name, layer in self.features.named_children():
-
-            if layer_name=="lstm":
-                #names = ['weight_ih_l0', 'weight_hh_l0', 'bias_ih_l0', 'bias_hh_l0']
-                
-                temp_params = []
-                for name, _ in layer.named_parameters():
-                   temp_params.append(params.get("features."+ layer_name +"."+name))
-
-                output, (hn, cn) = layer(x, temp_params)
-                x = hn[-1].view(len(input),-1)
-            
-            elif layer_name=="linear":
-                weight = params.get('features.' + layer_name + '.weight', None)
-                bias = params.get('features.' + layer_name + '.bias', None)
-                x = F.linear(x, weight = weight, bias = bias)
-        
-
-        return x
-
-    @property
-    def param_dict(self):
-        return OrderedDict(self.named_parameters())
-
-class MetaLearner(object):
-    def __init__(self, model, optimizer, fast_lr, loss_func,
-                 first_order, num_updates, inner_loop_grad_clip,
-                 device):
-
-        self._model = model
-        self._fast_lr = fast_lr
-        self._optimizer = optimizer
-        self._loss_func = loss_func
-        self._first_order = first_order
-        self._num_updates = num_updates
-        self._inner_loop_grad_clip = inner_loop_grad_clip
-        self._device = device
-        self._grads_mean = []
-
-        self.to(device)
-
-
-    def update_params(self, loss, params):
-        """Apply one step of gradient descent on the loss function `loss`,
-        with step-size `self._fast_lr`, and returns the updated parameters.
-        """
-        create_graph = not self._first_order
-        grads = torch.autograd.grad(loss, params.values(),
-                                    create_graph=create_graph, allow_unused=True)
-        for (name, param), grad in zip(params.items(), grads):
-            if self._inner_loop_grad_clip > 0 and grad is not None:
-                grad = grad.clamp(min=-self._inner_loop_grad_clip,
-                                  max=self._inner_loop_grad_clip)
-            if grad is not None:
-              params[name] = param - self._fast_lr * grad
-
-        return params
-
-    def adapt(self, train_tasks):
-        adapted_params = []
-
-        for task in train_tasks:
-            params = self._model.param_dict
-
-            for i in range(self._num_updates):
-                preds = self._model(task.x, params=params)
-                loss = self._loss_func(preds, task.y)
-                params = self.update_params(loss, params=params)
-
-            adapted_params.append(params)
-
-        return adapted_params
-
-    def step(self, adapted_params_list, val_tasks,
-             is_training):
-        
-        self._optimizer.zero_grad()
-        post_update_losses = []
-
-        for adapted_params, task in zip(
-                adapted_params_list, val_tasks):
-            preds = self._model(task.x, params=adapted_params)
-            loss = self._loss_func(preds, task.y)
-            post_update_losses.append(loss)
-
-        mean_loss = torch.mean(torch.stack(post_update_losses))
-        if is_training:
-            mean_loss.backward()
-            self._optimizer.step()
-
-
-        return mean_loss
-
-    def to(self, device, **kwargs):
-        self._device = device
-        self._model.to(device, **kwargs)
-
-    def state_dict(self):
-        state = {
-            'model_state_dict': self._model.state_dict(),
-            'optimizer': self._optimizer.state_dict() 
-        }
-
-        return state
-
-
-def test (test_data_ML, model, device):
+def test (test_data_ML, meta_learner, device, horizon = 10):
 
     total_tasks_test = len(test_data_ML)
     task_size = test_data_ML.x.shape[-3]
@@ -266,67 +44,167 @@ def test (test_data_ML, model, device):
         y_qry = to_torch(y_qry)
 
         train_task = [Task(x_spt, y_spt)]
+        val_task = [Task(x_qry, y_qry)]
 
         adapted_params = meta_learner.adapt(train_task)
-        y_pred = model(x_qry, adapted_params[0])
+        mean_loss = meta_learner.step(adapted_params, val_task, is_training = 0)
+        #y_pred = metalearner._model(x_qry, adapted_params[0])
 
-        error = mae(y_pred, y_qry)
+        #error = mae(y_pred, y_qry)
 
         count += 1
-        accum_error += error.cpu().data
+        #accum_error += error.cpu().data
+        accum_error += mean_loss.cpu().data
 
     return accum_error/count
 
 
-train_data = pickle.load(  open( "../../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
-train_data_ML = pickle.load( open( "../../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
-validation_data = pickle.load( open( "../../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
-validation_data_ML = pickle.load( open( "../../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
-test_data = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
-test_data_ML = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
 
-model = LSTMModel( batch_size=batch_size, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =1)
+def main(args):
 
 
-torch.backends.cudnn.enabled = False
-optimizer = torch.optim.Adam(model.parameters(), lr = slow_lr)
-loss_func = mae
-first_order = False
-num_updates = 5
-epochs = 5
-inner_loop_grad_clip = 20
-batch_size = 10
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
-meta_learner = MetaLearner(model, optimizer, fast_lr , loss_func,
-                 first_order, num_updates, inner_loop_grad_clip,
-                 device)
+    dataset_name = args.dataset
+    model_name = args.model 
+    n_inner_iter = args.adaptation_steps
+    batch_size = args.batch_size
+    save_model_file = args.save_model_file
+    load_model_file = args.load_model_file
+    lower_trial = args.lower_trial
+    upper_trial = args.upper_trial
+    is_test = args.is_test
+    stopping_patience = args.stopping_patience
+    epochs = args.epochs
+    fast_lr = args.learning_rate
+    slow_lr = args.meta_learning_rate
 
-total_tasks, task_size, window_size, input_dim = test_data_ML.x.shape
-n_batches = train_data_ML.x.shape[0] // batch_size
+    first_order = False
+    inner_loop_grad_clip = 20
+    task_size = 50
+    output_dim = 1
 
-
-for epoch in range(epochs):
-
-    
-    #train
-    batch_idx = np.random.randint(0,n_batches)
-    x_spt, y_spt = train_data_ML[batch_idx:batch_size+batch_idx]
-    x_qry, y_qry = train_data_ML[batch_idx+1 : batch_idx+batch_size+1]
-    
-    x_spt, y_spt = to_torch(x_spt), to_torch(y_spt)
-    x_qry = to_torch(x_qry)
-    y_qry = to_torch(y_qry)
-
-    train_tasks = [Task(x_spt[i], y_spt[i]) for i in range(x_spt.shape[0])]
-    val_tasks = [Task(x_qry[i], y_qry[i]) for i in range(x_qry.shape[0])]
-
-    adapted_params = meta_learner.adapt(train_tasks)
-    mean_loss = meta_learner.step(adapted_params, val_tasks, is_training = True)
-    print(mean_loss)
-
-    #test
-    val_error = test(validation_data_ML, model, device)
-    print(val_error)
+    horizon = 10
+    ##test
 
 
+    meta_info = {"POLLUTION": [5, 50, 14],
+                 "HR": [32, 50, 13],
+                 "BATTERY": [20, 50, 3] }
+
+    assert model_name in ("FCN", "LSTM"), "Model was not correctly specified"
+    assert dataset_name in ("POLLUTION", "HR", "BATTERY")
+
+    window_size, task_size, input_dim = meta_info[dataset_name]
+
+    output_directory = "output/"
+
+    train_data_ML = pickle.load( open( "../../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
+    validation_data_ML = pickle.load( open( "../../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
+    test_data_ML = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
+
+
+    for trial in range(lower_trial, upper_trial):
+
+        output_directory = "../../Models/"+dataset_name+"_"+model_name+"_MAML/"+str(trial)+"/"
+        save_model_file_ = output_directory + save_model_file
+        load_model_file_ = output_directory + load_model_file
+
+
+        try:
+            os.mkdir(output_directory)
+        except OSError as error: 
+            print(error)
+
+        f=open(output_directory+"/results.txt", "a+")
+        f.write("Learning rate :%f \n"% fast_lr)
+        f.write("Meta-learning rate: %f \n" % slow_lr)
+        f.write("Adaptation steps: %f \n" % n_inner_iter)
+        f.write("\n")
+        f.close()
+
+
+        if model_name == "LSTM":
+            model = LSTMModel( batch_size=batch_size, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =output_dim)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr = slow_lr)
+        loss_func = mae
+
+        torch.backends.cudnn.enabled = False
+
+        device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+
+        meta_learner = MetaLearner(model, optimizer, fast_lr , loss_func,
+                        first_order, n_inner_iter, inner_loop_grad_clip,
+                        device)
+
+        total_tasks, task_size, window_size, input_dim = train_data_ML.x.shape
+   
+
+        early_stopping = EarlyStopping(patience=stopping_patience, model_file=save_model_file_, verbose=True)
+
+        for _ in range(epochs):
+
+            
+            #train
+            batch_idx = np.random.randint(0, total_tasks-1, batch_size)
+            x_spt, y_spt = train_data_ML[batch_idx]
+            x_qry, y_qry = train_data_ML[batch_idx+1]
+            
+            x_spt, y_spt = to_torch(x_spt), to_torch(y_spt)
+            x_qry = to_torch(x_qry)
+            y_qry = to_torch(y_qry)
+
+            train_tasks = [Task(x_spt[i], y_spt[i]) for i in range(x_spt.shape[0])]
+            val_tasks = [Task(x_qry[i], y_qry[i]) for i in range(x_qry.shape[0])]
+
+            adapted_params = meta_learner.adapt(train_tasks)
+            mean_loss = meta_learner.step(adapted_params, val_tasks, is_training = True)
+            print(mean_loss)
+
+            #test
+            val_error = test(validation_data_ML, meta_learner, device)
+            print(val_error)
+
+            early_stopping(val_error, meta_learner)
+
+            if early_stopping.early_stop:
+                print("Early stopping")
+                break
+
+        model.load_state_dict(torch.load(save_model_file_)["model_state_dict"])
+        meta_learner = MetaLearner(model, optimizer, fast_lr , loss_func,
+                        first_order, n_inner_iter, inner_loop_grad_clip,
+                        device)
+
+        validation_error = test(validation_data_ML, meta_learner, device)
+        test_error = test(test_data_ML, meta_learner, device)
+
+        with open(output_directory+"/results.txt", "a+") as f:
+            f.write("Test error: %f \n" % test_error)
+            f.write("Validation error: %f \n" %validation_error)
+        
+        print(test_error)
+        print(validation_error)
+
+
+if __name__ == '__main__':
+
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('--dataset', type=str, help='dataset to use, possible: POLLUTION, HR, BATTERY', default="POLLUTION")
+    argparser.add_argument('--model', type=str, help='base model, possible: LSTM, FCN', default="LSTM")
+    argparser.add_argument('--adaptation_steps', type=int, help='number of updates in the inner loop', default=5)
+    argparser.add_argument('--learning_rate', type=float, help='learning rate for the inner loop', default=0.01)
+    argparser.add_argument('--meta_learning_rate', type=float, help='learning rate for the outer loop', default=0.005)
+    argparser.add_argument('--batch_size', type=int, help='batch size for the meta-upates (outer loop)', default=20)
+    argparser.add_argument('--save_model_file', type=str, help='name to save the model in memory', default="model.pt")
+    argparser.add_argument('--load_model_file', type=str, help='name to load the model in memory', default="model.pt")
+    argparser.add_argument('--lower_trial', type=int, help='identifier of the lower trial value', default=0)
+    argparser.add_argument('--upper_trial', type=int, help='identifier of the upper trial value', default=3)
+    argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)
+    argparser.add_argument('--stopping_patience', type=int, help='patience for early stopping', default=30)
+    argparser.add_argument('--epochs', type=int, help='epochs', default=2000)
+
+    args = argparser.parse_args()
+
+    main(args)

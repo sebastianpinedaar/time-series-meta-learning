@@ -177,18 +177,18 @@ def test(maml, model_name, test_data_ML, adaptation_steps, learning_rate, with_e
             x_qry = to_torch(x_qry)
             y_qry = to_torch(y_qry)
 
-        early_stopping = EarlyStopping(patience=2, model_file="temp/temp_file.pt", verbose=True)
+        early_stopping = EarlyStopping(patience=2, model_file="temp/temp_file_"+model_name+".pt", verbose=True)
         
         #model2.eval()
         for step in range(adaptation_steps):
 
             model2.zero_grad()
+            opt2.zero_grad()
 
             #model2.train()
             pred = model2(x_spt)
             error = mae(pred, y_spt)
-
-            opt2.zero_grad()
+                        
             error.backward()
   
             opt2.step()
@@ -205,7 +205,7 @@ def test(maml, model_name, test_data_ML, adaptation_steps, learning_rate, with_e
                 break
                 
         if with_early_stopping:
-            model2.load_state_dict(torch.load("temp/temp_file.pt"))
+            model2.load_state_dict(torch.load("temp/temp_file_"+model_name+".pt"))
         #model2.eval()
         pred = model2(x_qry)
         error = mae(pred, y_qry)
