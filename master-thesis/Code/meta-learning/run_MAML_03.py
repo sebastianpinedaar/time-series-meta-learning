@@ -180,6 +180,9 @@ def test(maml, model_name, dataset_name, test_data_ML, adaptation_steps, learnin
         early_stopping = EarlyStopping(patience=2, model_file="temp/temp_file_"+model_name+".pt", verbose=True)
         
         #model2.eval()
+
+        
+
         for step in range(adaptation_steps):
 
             model2.zero_grad()
@@ -245,11 +248,14 @@ def main(args):
     is_test = args.is_test
     patience_stopping = args.stopping_patience
     epochs = args.epochs
+    noise_level = args.noise_level
+    noise_type = args.noise_type
 
     assert model_name in ("FCN", "LSTM"), "Model was not correctly specified"
     assert dataset_name in ("POLLUTION", "HR", "BATTERY")
 
     window_size, task_size, input_dim = meta_info[dataset_name]
+    grid = [0., noise_level]
 
     train_data = pickle.load(  open( "../../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
     train_data_ML = pickle.load( open( "../../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
@@ -257,6 +263,8 @@ def main(args):
     validation_data_ML = pickle.load( open( "../../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
     test_data = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
     test_data_ML = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
+
+    results_dict = {}
 
     for trial in range(lower_trial, upper_trial):
 
@@ -271,7 +279,7 @@ def main(args):
         except OSError as error: 
             print(error)
 
-        f=open(output_directory+"/results.txt", "a+")
+        f=open(output_directory+"/results3.txt", "a+")
         f.write("Learning rate :%f \n"% learning_rate)
         f.write("Meta-learning rate: %f \n" % meta_learning_rate)
         f.write("Adaptation steps: %f \n" % adaptation_steps)
@@ -296,9 +304,9 @@ def main(args):
         val_error = test(maml, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate)
 
         early_stopping = EarlyStopping(patience=patience_stopping, model_file=save_model_file_, verbose=True)
-        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, patience =20, verbose=True)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, patience =200, verbose=True)
 
-        early_stopping(val_error, maml)
+        #early_stopping(val_error, maml)
 
         for iteration in range(epochs):
               # Creates a clone of model
@@ -309,7 +317,9 @@ def main(args):
             for task in range(batch_size):
                 learner = maml.clone()
                 task = np.random.randint(0,total_num_tasks-horizon)
-                task_qry = np.random.randint(1,horizon+1)
+                #task_qry = np.random.randint(1,horizon+1)
+
+
                 x_spt, y_spt = train_data_ML[task]
                 #x_qry, y_qry = train_data_ML[(task+1):(task+1+horizon)]
                 x_qry, y_qry = train_data_ML[task+1]
@@ -324,6 +334,17 @@ def main(args):
                 x_spt, y_spt = to_torch(x_spt), to_torch(y_spt)
                 x_qry = to_torch(x_qry)
                 y_qry = to_torch(y_qry)
+                
+
+                #data augmentation
+                epsilon = grid[np.random.randint(0,len(grid))]
+
+                if noise_type == "additive":
+                    y_spt = y_spt+epsilon
+                    y_qry = y_qry+epsilon
+                else:
+                    y_spt = y_spt*(1+epsilon)
+                    y_qry = y_qry*(1+epsilon)
                 
                 # Fast adapt
                 for step in range(adaptation_steps):
@@ -345,8 +366,10 @@ def main(args):
             
             if iteration%1 == 0:
                 val_error = test(maml, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate)
-                #scheduler.step(val_error)
+                test_error = test(maml, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate)
+                scheduler.step(val_error)
                 print("Val error:", val_error)
+                print("Test error:", test_error)
 
                 early_stopping(val_error, maml)
 
@@ -362,15 +385,13 @@ def main(args):
         #validation_error4 = test(maml, model_name, dataset_name, validation_data_ML, 10, learning_rate*0.1, with_early_stopping=True)
 
         test_error = test(maml, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate)
-        initial_test_error = test(maml, model_name, dataset_name, test_data_ML, 0, learning_rate)
         #test_error2 = test(maml, model_name, dataset_name, test_data_ML, adaptation_steps , learning_rate, with_early_stopping=True)
         #test_error3 = test(maml, model_name, dataset_name, test_data_ML, 10 , learning_rate, with_early_stopping=True)
         #test_error4 = test(maml, model_name, dataset_name, test_data_ML, 10, learning_rate*0.1, with_early_stopping=True)
 
-        f=open(output_directory+"/results.txt", "a+")
-        f.write("\n Dataset :%s \n"% dataset_name)
+        f=open(output_directory+"/results3.txt", "a+")
+        f.write("Dataset :%s \n"% dataset_name)
         f.write("Test error: %f \n" % test_error)
-        f.write("Initial Test error: %f \n" % initial_test_error)
         #f.write("Test error2: %f \n" % test_error2)
         #f.write("Test error3: %f \n" % test_error3)
         #f.write("Test error4: %f \n" % test_error4)
@@ -382,7 +403,11 @@ def main(args):
         f.write("\n")
         f.close()
 
-        #np.save(output_directory+"results_dict.npy", test_loss_dict)
+        results_dict[str(trial)+"_val"] = validation_error
+        results_dict[str(trial)+"_test"] = test_error
+    
+    np.save("npy_objects/run03_"+dataset_name+"_"+model_name+"_"+noise_type+"_"+str(noise_level*100000)+".npy", results_dict) 
+
 
 
 if __name__ == '__main__':
@@ -401,6 +426,8 @@ if __name__ == '__main__':
     argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)
     argparser.add_argument('--stopping_patience', type=int, help='patience for early stopping', default=30)
     argparser.add_argument('--epochs', type=int, help='epochs', default=2000)
+    argparser.add_argument('--noise_level', type=float, help='noise level', default=1)
+    argparser.add_argument('--noise_type', type=str, help='noise type', default="additive")
 
     args = argparser.parse_args()
 

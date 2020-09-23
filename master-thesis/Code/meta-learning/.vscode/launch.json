@@ -10,7 +10,7 @@
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal",
-            "args": ["--batch_size", "10", "--dataset", "HR", "--lower_trial", "0", "--upper_trial", "1", "--adaptation_steps", "5", "--epochs", "100", "--learning_rate", "0.01", "--meta_learning_rate", "0.005"]
+            "args": ["--batch_size", "20", "--dataset", "POLLUTION", "--lower_trial", "0", "--upper_trial", "3", "--adaptation_steps", "1", "--epochs", "500", "--learning_rate", "0.01", "--meta_learning_rate", "0.005", "--stopping_patience", "20"]
         }
     ]
 }

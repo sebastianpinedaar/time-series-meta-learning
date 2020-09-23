@@ -33,6 +33,8 @@ def test (test_data_ML, meta_learner, device, horizon = 10):
     accum_error = 0.0
     count = 0
 
+
+
     for task in range(0, (total_tasks_test-horizon-1), total_tasks_test//100):
 
         x_spt, y_spt = test_data_ML[task]
@@ -48,15 +50,12 @@ def test (test_data_ML, meta_learner, device, horizon = 10):
 
         adapted_params = meta_learner.adapt(train_task)
         mean_loss = meta_learner.step(adapted_params, val_task, is_training = 0)
-        #y_pred = metalearner._model(x_qry, adapted_params[0])
-
-        #error = mae(y_pred, y_qry)
 
         count += 1
-        #accum_error += error.cpu().data
         accum_error += mean_loss.cpu().data
 
     return accum_error/count
+
 
 
 
@@ -115,13 +114,11 @@ def main(args):
         except OSError as error: 
             print(error)
 
-        f=open(output_directory+"/results.txt", "a+")
-        f.write("Learning rate :%f \n"% fast_lr)
-        f.write("Meta-learning rate: %f \n" % slow_lr)
-        f.write("Adaptation steps: %f \n" % n_inner_iter)
-        f.write("\n")
-        f.close()
-
+        with open(output_directory+"/results2.txt", "a+") as f:
+            f.write("Learning rate :%f \n"% fast_lr)
+            f.write("Meta-learning rate: %f \n" % slow_lr)
+            f.write("Adaptation steps: %f \n" % n_inner_iter)
+            f.write("\n")
 
         if model_name == "LSTM":
             model = LSTMModel( batch_size=batch_size, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =output_dim)
@@ -180,7 +177,7 @@ def main(args):
         validation_error = test(validation_data_ML, meta_learner, device)
         test_error = test(test_data_ML, meta_learner, device)
 
-        with open(output_directory+"/results.txt", "a+") as f:
+        with open(output_directory+"/results2.txt", "a+") as f:
             f.write("Test error: %f \n" % test_error)
             f.write("Validation error: %f \n" %validation_error)
         
@@ -197,8 +194,8 @@ if __name__ == '__main__':
     argparser.add_argument('--learning_rate', type=float, help='learning rate for the inner loop', default=0.01)
     argparser.add_argument('--meta_learning_rate', type=float, help='learning rate for the outer loop', default=0.005)
     argparser.add_argument('--batch_size', type=int, help='batch size for the meta-upates (outer loop)', default=20)
-    argparser.add_argument('--save_model_file', type=str, help='name to save the model in memory', default="model.pt")
-    argparser.add_argument('--load_model_file', type=str, help='name to load the model in memory', default="model.pt")
+    argparser.add_argument('--save_model_file', type=str, help='name to save the model in memory', default="model02.pt")
+    argparser.add_argument('--load_model_file', type=str, help='name to load the model in memory', default="model02.pt")
     argparser.add_argument('--lower_trial', type=int, help='identifier of the lower trial value', default=0)
     argparser.add_argument('--upper_trial', type=int, help='identifier of the upper trial value', default=3)
     argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)

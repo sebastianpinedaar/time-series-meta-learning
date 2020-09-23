@@ -62,7 +62,7 @@ def step(model, data_iter, len_dataloader, optimizer = None, loss = mae, is_trai
         
 
 
-def train(model, train_loader, val_loader, early_stopping, learning_rate = 0.001, epochs = 500, add_weight_decay = False, monitor_stopping = True):
+def train(model, train_loader, val_loader, early_stopping, learning_rate = 0.001, epochs = 500, add_weight_decay = False, monitor_stopping = False):
 
     optimizer = optim.SGD(model.parameters(), lr=learning_rate) if ~add_weight_decay else optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 10e-2)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = early_stopping.patience//4, verbose=True)
@@ -119,9 +119,9 @@ def test(model, test_loader, output_directory, model_file, verbose = True, thres
     return mean_err
 
 
-def freeze_fcn(fcn):
+def freeze_model(model):
 
-    for params in fcn.named_parameters():
+    for params in model.named_parameters():
         if(params[0][:6]!="linear"):
             params[1].requires_grad=False
         elif (params[0]=="linear.weight"):
@@ -142,7 +142,7 @@ def main(args):
     output_directory = "output/"
     verbose=True
     batch_size=64
-
+    freeze_model_flag = True
 
     params = {'batch_size': batch_size,
           'shuffle': True,
@@ -160,12 +160,15 @@ def main(args):
     is_test = args.is_test
     patience_stopping = args.patience_stopping
     epochs = args.epochs
+    freeze_model_flag = args.freeze_model
 
     assert mode in ("WFT", "WOFT", "50"), "Mode was not correctly specified"
     assert model_name in ("FCN", "LSTM"), "Model was not correctly specified"
     assert dataset_name in ("POLLUTION", "HR", "BATTERY")
 
     window_size, task_size, input_dim = meta_info[dataset_name]
+
+    task_size = args.task_size
 
     train_data = pickle.load(  open( "../Data/TRAIN-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
     validation_data = pickle.load( open( "../Data/VAL-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
@@ -238,11 +241,17 @@ def main(args):
 
             n_tasks, task_size, dim, channels = test_data_ML.x.shape if is_test else validation_data_ML.x.shape
             horizon = 10
-            #epochs = 20
-            test_loss_list = []
-            initial_test_loss_list = []
+            test_loss_list1 = []
+            test_loss_list2 = []
+            initial_test_loss_list1 = []
+            initial_test_loss_list2 = []
 
-            for task_id in range(0, (n_tasks-horizon-1), n_tasks//300):
+            if n_tasks == 50:
+                step = n_tasks//100
+            else:
+                step = 1
+
+            for task_id in range(0, (n_tasks-horizon-1), step):
                 
 
                 #check that all files blong to the same domain
@@ -251,24 +260,25 @@ def main(args):
                     continue
 
                 if is_test: 
-                    temp_x_train = test_data_ML.x[task_id][:int(task_size*0.8)]
-                    temp_y_train = test_data_ML.y[task_id][:int(task_size*0.8)]
-                    
-                    temp_x_val = test_data_ML.x[task_id][int(task_size*0.8):]
-                    temp_y_val = test_data_ML.y[task_id][int(task_size*0.8):]
+                    temp_x_train = test_data_ML.x[task_id]
+                    temp_y_train = test_data_ML.y[task_id]
 
-                    temp_x_test = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
-                    temp_y_test = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
+                    temp_x_test1 = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
+                    temp_y_test1 = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
+
+                    temp_x_test2 = test_data_ML.x[(task_id+1):(task_id+1)].reshape(-1, dim, channels)
+                    temp_y_test2 = test_data_ML.y[(task_id+1):(task_id+1)].reshape(-1, 1)
 
                 else:
-                    temp_x_train = validation_data_ML.x[task_id][:int(task_size*0.8)]
-                    temp_y_train = validation_data_ML.y[task_id][:int(task_size*0.8)]
-                    
-                    temp_x_val = validation_data_ML.x[task_id][int(task_size*0.8):]
-                    temp_y_val = validation_data_ML.y[task_id][int(task_size*0.8):]
+                    temp_x_train = validation_data_ML.x[task_id]
+                    temp_y_train = validation_data_ML.y[task_id]
 
-                    temp_x_test = validation_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
-                    temp_y_test = validation_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)               
+                    temp_x_test1 = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
+                    temp_y_test1 = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
+
+                    temp_x_test2 = test_data_ML.x[(task_id+1):(task_id+1)].reshape(-1, dim, channels)
+                    temp_y_test2 = test_data_ML.y[(task_id+1):(task_id+1)].reshape(-1, 1)
+
 
                 if model_name == "FCN":
 
@@ -290,33 +300,40 @@ def main(args):
 
 
                 train_loader = DataLoader(SimpleDataset(x=temp_x_train, y=temp_y_train), **params)
-                val_loader = DataLoader(SimpleDataset(x=temp_x_val, y=temp_y_val), **params)
-                test_loader = DataLoader(SimpleDataset(x=temp_x_test, y=temp_y_test), **params)
+                test_loader1 = DataLoader(SimpleDataset(x=temp_x_test1, y=temp_y_test1), **params)
+                test_loader2 = DataLoader(SimpleDataset(x=temp_x_test2, y=temp_y_test2), **params)
 
                 model.cuda()
-                initial_loss = test(model, test_loader, output_directory, load_model_file_, True)
+                initial_loss1 = test(model, test_loader1, output_directory, load_model_file_, True)
+                initial_loss2 = test(model, test_loader2, output_directory, load_model_file_, True)
+               
+                if freeze_model_flag:
+                    freeze_model(model)
 
-                if model_name == "FCN":
-                    #pass
-                    freeze_fcn(model)
-                    #model = ExtendedFCN(model, 20,1)
-                    #model.cuda()
 
                 early_stopping(initial_loss, model)
-                train(model, train_loader, val_loader, early_stopping, learning_rate, epochs, add_weight_decay=True) 
-                loss = test(model, test_loader, output_directory, save_model_file_, True)
-                print(loss)
+                train(model, train_loader, test_loader1, early_stopping, learning_rate, epochs, add_weight_decay=False) 
+                loss1 = test(model, test_loader1, output_directory, save_model_file_, True)
+                loss2 = test(model, test_loader2, output_directory, save_model_file_, True)
+                print(loss1)
 
-                test_loss_list.append(loss)
-                initial_test_loss_list.append(initial_loss)
+                test_loss_list1.append(loss1)
+                initial_test_loss_list1.append(initial_loss1)
+                test_loss_list1.append(loss2)
+                initial_test_loss_list1.append(initial_loss2)
 
             f=open(output_directory+"/results.txt", "a+")
             f.write("Learning rate: %f \n" % learning_rate)
-            f.write("Initial Test error :%f \n"% np.mean(initial_test_loss_list))
-            f.write("Test error: %f \n"% np.mean(test_loss_list))
-            f.write("Standard deviation: %f \n" % np.std(test_loss_list))
+            f.write("Initial Test error1 :%f \n"% np.mean(initial_test_loss_list1))
+            f.write("Test error1: %f \n"% np.mean(test_loss_list1))
+            f.write("Standard deviation1: %f \n" % np.std(test_loss_list1))
+            f.write("Initial Test error2 :%f \n"% np.mean(initial_test_loss_list2))
+            f.write("Test error2: %f \n"% np.mean(test_loss_list2))
+            f.write("Standard deviation2: %f \n" % np.std(test_loss_list2))
             f.write("\n")
             f.close()       
+
+            np.save("test_loss_wtf_fcn_"+str(trial)+".npy", test_loss_list)
 
 
         elif mode == "50":
@@ -375,7 +392,10 @@ def main(args):
                     temp_train_data.x = np.transpose(temp_train_data.x, [0,2,1])
                     temp_test_data.x = np.transpose(temp_test_data.x, [0,2,1])
                     temp_val_data.x = np.transpose(temp_val_data.x, [0,2,1])
-                    freeze_fcn(model)
+                    
+
+                if freeze_model_flag:    
+                    freeze_model(model)
                          
                      
                                 
@@ -419,6 +439,8 @@ if __name__ == '__main__':
     argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)
     argparser.add_argument('--patience_stopping', type=int, help='patience for early stopping', default=20)
     argparser.add_argument('--epochs', type=int, help='epochs', default=500)
+    argparser.add_argument('--task_size', type=int, help='task size', default=50)
+    argparser.add_argument('--freeze_model', type=int, help='freeze model', default=1)
 
     args = argparser.parse_args()
 
