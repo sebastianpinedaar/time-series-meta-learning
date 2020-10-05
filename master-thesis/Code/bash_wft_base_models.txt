@@ -1,0 +1,80 @@
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 10
+
+
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 10
+
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 10
+
+
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 10
+
+
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 1
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 10
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 10
+
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 5
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 1
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 10
+python eval_base_models.py --model FCN  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 10

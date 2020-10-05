@@ -38,6 +38,7 @@ def step(model, data_iter, len_dataloader, optimizer = None, loss = mae, is_trai
 
         if is_train:
             model.zero_grad()
+            optimizer.zero_grad()
         
         x = torch.tensor(x).float().to(device)
         y = torch.tensor(y).float().to(device)
@@ -62,9 +63,9 @@ def step(model, data_iter, len_dataloader, optimizer = None, loss = mae, is_trai
         
 
 
-def train(model, train_loader, val_loader, early_stopping, learning_rate = 0.001, epochs = 500, add_weight_decay = False, monitor_stopping = False):
+def train(model, train_loader, val_loader, early_stopping, learning_rate = 0.001, epochs = 500, weight_decay = 0.0 , monitor_stopping = False):
 
-    optimizer = optim.SGD(model.parameters(), lr=learning_rate) if ~add_weight_decay else optim.SGD(model.parameters(), lr=learning_rate, weight_decay = 10e-2)
+    optimizer = optim.SGD(model.parameters(), lr=learning_rate, weight_decay = weight_decay)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience = early_stopping.patience//4, verbose=True)
     
 
@@ -81,19 +82,20 @@ def train(model, train_loader, val_loader, early_stopping, learning_rate = 0.001
         with torch.no_grad():
             mean_err_val = step(model, val_iter, len_val_loader)
 
-        print ('epoch: %d, \n TRAINING -> mean_err: %f' % (epoch, mean_err))
-        print ('epoch: %d, \n VAL -> mean_err: %f' % (epoch, mean_err_val))
+        #print ('epoch: %d, \n TRAINING -> mean_err: %f' % (epoch, mean_err))
+        #print ('epoch: %d, \n VAL -> mean_err: %f' % (epoch, mean_err_val))
 
-        scheduler.step(mean_err_val)
+        
 
         if monitor_stopping:
+            scheduler.step(mean_err_val)
             early_stopping(mean_err_val, model)
 
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
 
-        print('done')
+        #print('done')
 
     return epoch+1
 
@@ -106,9 +108,9 @@ def test(model, test_loader, output_directory, model_file, verbose = True, thres
     model.load_state_dict(torch.load(model_file))
 
     with torch.no_grad():
-        mean_err = step(model, test_iter, len_test_loader, threshold=True)
+        mean_err = step(model, test_iter, len_test_loader, threshold=threshold)
 
-    print("Regression error on test: %f"%(mean_err))
+    #print("Regression error on test: %f"%(mean_err))
 
     if verbose:
         f=open(output_directory+"/results.txt", "a+")
@@ -167,6 +169,7 @@ def main(args):
     assert dataset_name in ("POLLUTION", "HR", "BATTERY")
 
     window_size, task_size, input_dim = meta_info[dataset_name]
+    task_size = args.task_size
 
     task_size = args.task_size
 
@@ -195,6 +198,8 @@ def main(args):
             f=open(output_directory+"/results.txt", "a+")
             f.write("Dataset :%s \n"% dataset_name)
             f.write("Learning rate:%f \n"%learning_rate)
+            f.write("Epochs:%f \n"%epochs)
+            f.write("Model name:%s \n"%model_name)
             f.close()
 
             if model_name == "FCN":
@@ -230,8 +235,11 @@ def main(args):
         elif mode == "WFT":
 
             f=open(output_directory+"/results.txt", "a+")
-            f.write("Dataset :%s"% dataset_name)
-            f.write("\n")
+            f.write("Dataset :%s \n"% dataset_name)
+            f.write("Learning rate:%f \n"%learning_rate)
+            f.write("Epochs:%f \n"%epochs)
+            f.write("Model name:%s \n"%model_name)
+            f.write("Regularization:%s \n"%regularization_penalty)
             f.close()
 
             save_model_file_ = output_directory+save_model_file
@@ -246,7 +254,7 @@ def main(args):
             initial_test_loss_list1 = []
             initial_test_loss_list2 = []
 
-            if n_tasks == 50:
+            if task_size == 50:
                 step = n_tasks//100
             else:
                 step = 1
@@ -255,7 +263,7 @@ def main(args):
                 
 
                 #check that all files blong to the same domain
-                temp_file_idx = test_data_ML.file_idx[task_id:task_id+horizon+1]
+                temp_file_idx = test_data_ML.file_idx[task_id:task_id+horizon+1] if is_test else validation_data_ML.file_idx[task_id:task_id+horizon+1]
                 if(len(np.unique(temp_file_idx))>1):
                     continue
 
@@ -266,26 +274,27 @@ def main(args):
                     temp_x_test1 = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
                     temp_y_test1 = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
 
-                    temp_x_test2 = test_data_ML.x[(task_id+1):(task_id+1)].reshape(-1, dim, channels)
-                    temp_y_test2 = test_data_ML.y[(task_id+1):(task_id+1)].reshape(-1, 1)
+                    temp_x_test2 = test_data_ML.x[(task_id+1)].reshape(-1, dim, channels)
+                    temp_y_test2 = test_data_ML.y[(task_id+1)].reshape(-1, 1)
 
                 else:
                     temp_x_train = validation_data_ML.x[task_id]
                     temp_y_train = validation_data_ML.y[task_id]
 
-                    temp_x_test1 = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
-                    temp_y_test1 = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
+                    temp_x_test1 = validation_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
+                    temp_y_test1 = validation_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
 
-                    temp_x_test2 = test_data_ML.x[(task_id+1):(task_id+1)].reshape(-1, dim, channels)
-                    temp_y_test2 = test_data_ML.y[(task_id+1):(task_id+1)].reshape(-1, 1)
+                    temp_x_test2 = validation_data_ML.x[(task_id+1)].reshape(-1, dim, channels)
+                    temp_y_test2 = validation_data_ML.y[(task_id+1)].reshape(-1, 1)
 
 
                 if model_name == "FCN":
 
                     kernels = [8,5,3] if dataset_name!= "POLLUTION" else [4,2,1]
                     temp_x_train = np.transpose(temp_x_train, [0,2,1])
-                    temp_x_test = np.transpose(temp_x_test, [0,2,1])
-                    temp_x_val = np.transpose(temp_x_val, [0,2,1])
+                    temp_x_test1 = np.transpose(temp_x_test1, [0,2,1])
+                    temp_x_test2 = np.transpose(temp_x_test2, [0,2,1])
+                    #temp_x_val = np.transpose(temp_x_val, [0,2,1])
 
                 early_stopping = EarlyStopping(patience=patience_stopping, model_file=save_model_file_, verbose=verbose)
                 
@@ -303,47 +312,49 @@ def main(args):
                 test_loader1 = DataLoader(SimpleDataset(x=temp_x_test1, y=temp_y_test1), **params)
                 test_loader2 = DataLoader(SimpleDataset(x=temp_x_test2, y=temp_y_test2), **params)
 
+                verbose = False
+
                 model.cuda()
-                initial_loss1 = test(model, test_loader1, output_directory, load_model_file_, True)
-                initial_loss2 = test(model, test_loader2, output_directory, load_model_file_, True)
+                initial_loss1 = test(model, test_loader1, output_directory, load_model_file_, verbose)
+                initial_loss2 = test(model, test_loader2, output_directory, load_model_file_, verbose)
                
                 if freeze_model_flag:
                     freeze_model(model)
 
 
-                early_stopping(initial_loss, model)
-                train(model, train_loader, test_loader1, early_stopping, learning_rate, epochs, add_weight_decay=False) 
-                loss1 = test(model, test_loader1, output_directory, save_model_file_, True)
-                loss2 = test(model, test_loader2, output_directory, save_model_file_, True)
+                #early_stopping(initial_loss, model)
+                train(model, train_loader, test_loader1, early_stopping, learning_rate, epochs, regularization_penalty) 
+                early_stopping(0.0, model)
+                loss1 = test(model, test_loader1, output_directory, save_model_file_, verbose, True)
+                loss2 = test(model, test_loader2, output_directory, save_model_file_, verbose, True)
                 print(loss1)
 
                 test_loss_list1.append(loss1)
                 initial_test_loss_list1.append(initial_loss1)
-                test_loss_list1.append(loss2)
-                initial_test_loss_list1.append(initial_loss2)
+                test_loss_list2.append(loss2)
+                initial_test_loss_list2.append(initial_loss2)
 
             f=open(output_directory+"/results.txt", "a+")
-            f.write("Learning rate: %f \n" % learning_rate)
-            f.write("Initial Test error1 :%f \n"% np.mean(initial_test_loss_list1))
+
+            #f.write("Initial Test error1 :%f \n"% np.mean(initial_test_loss_list1))
             f.write("Test error1: %f \n"% np.mean(test_loss_list1))
             f.write("Standard deviation1: %f \n" % np.std(test_loss_list1))
-            f.write("Initial Test error2 :%f \n"% np.mean(initial_test_loss_list2))
+            #f.write("Initial Test error2 :%f \n"% np.mean(initial_test_loss_list2))
             f.write("Test error2: %f \n"% np.mean(test_loss_list2))
             f.write("Standard deviation2: %f \n" % np.std(test_loss_list2))
             f.write("\n")
             f.close()       
 
-            np.save("test_loss_wtf_fcn_"+str(trial)+".npy", test_loss_list)
+            #np.save("test_loss_wtf_"+model_name+"_"+dataset_name+"_"+str(trial)+".npy", test_loss_list)
 
 
         elif mode == "50":
 
             assert save_model_file!=load_model_file, "Files cannot be the same"
 
-            f=open(output_directory+"/results.txt", "a+")
-            f.write("Dataset :%s"% dataset_name)
-            f.write("\n")
-            f.close()
+            with open(output_directory+"/results.txt", "a+") as f:
+                f.write("Dataset :%s"% dataset_name)
+                f.write("\n")
 
             save_model_file_ = output_directory+save_model_file
             load_model_file_ = output_directory+load_model_file
@@ -407,8 +418,8 @@ def main(args):
                 temp_test_loader = DataLoader(temp_test_data, **params)
 
                 initial_loss = test(model, temp_test_loader, output_directory, load_model_file_, False)
-                train(model, temp_train_loader, temp_val_loader, early_stopping, learning_rate, epochs) 
-                loss = test(model, temp_test_loader, output_directory, save_model_file_, True)
+                train(model, temp_train_loader, temp_val_loader, early_stopping, learning_rate, epochs, regularization_penalty) 
+                loss = test(model, temp_test_loader, output_directory, save_model_file_, True, True)
 
                 initial_test_loss_list.append(initial_loss)
                 test_loss_list.append(loss)
@@ -435,7 +446,7 @@ if __name__ == '__main__':
     argparser.add_argument('--lower_trial', type=int, help='identifier of the lower trial value', default=0)
     argparser.add_argument('--upper_trial', type=int, help='identifier of the upper trial value', default=3)
     argparser.add_argument('--learning_rate', type=float, help='learning rate', default=0.01)
-    argparser.add_argument('--regularization_penalty', type=float, help='regularization penaly', default=0.0001)
+    argparser.add_argument('--regularization_penalty', type=float, help='regularization penaly', default=0.0)
     argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)
     argparser.add_argument('--patience_stopping', type=int, help='patience for early stopping', default=20)
     argparser.add_argument('--epochs', type=int, help='epochs', default=500)

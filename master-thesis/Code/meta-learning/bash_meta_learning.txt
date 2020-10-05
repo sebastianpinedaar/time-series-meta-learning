@@ -1,6 +1,6 @@
 conda activate pytorch12
 
-python run_MAML_03.py --lower_trial 0 --upper_trial 2 --adaptation_steps 5 --meta_learning_rate 0.0005 --learning_rate 0.001 --epochs 1000 --batch_size 20 --stopping_patience 20
+python run_MAML_04.py --lower_trial 0 --upper_trial 2 --adaptation_steps 5 --meta_learning_rate 0.0005 --learning_rate 0.001 --epochs 1000 --batch_size 20 --stopping_patience 20
 python run_MAML_03.py --lower_trial 0 --upper_trial 2 --adaptation_steps 5 --meta_learning_rate 0.005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 20
 python run_MAML_03.py --lower_trial 0 --upper_trial 2 --adaptation_steps 5 --meta_learning_rate 0.00005 --learning_rate 0.0001 --epochs 1000 --batch_size 20 --stopping_patience 20
 
@@ -11,3 +11,13 @@ python run_MAML_03.py --lower_trial 0 --upper_trial 2 --adaptation_steps 10 --me
 python run_MAML_03.py --lower_trial 0 --upper_trial 2 --adaptation_steps 1 --meta_learning_rate 0.0005 --learning_rate 0.001 --epochs 1000 --batch_size 20 --stopping_patience 20
 python run_MAML_03.py --lower_trial 0 --upper_trial 2 --adaptation_steps 1 --meta_learning_rate 0.005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 20
 python run_MAML_03.py --lower_trial 0 --upper_trial 2 --adaptation_steps 1 --meta_learning_rate 0.00005 --learning_rate 0.0001 --epochs 1000 --batch_size 20 --stopping_patience 20
+
+python run_MAML_04.py --lower_trial 0 --upper_trial 3 --adaptation_steps 1 --meta_learning_rate 0.005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 20 --noise_level 0.001
+python run_MAML_04.py --lower_trial 0 --upper_trial 3 --adaptation_steps 1 --meta_learning_rate 0.005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 20 --noise_level 0.
+python run_MAML_04.py --lower_trial 0 --upper_trial 3 --adaptation_steps 1 --meta_learning_rate 0.005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 20 --noise_level 0.01
+
+python run_MAML_04.py --dataset POLLUTION --lower_trial 0 --upper_trial 3 --adaptation_steps 10 --meta_learning_rate 0.005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 50 --noise_level 0.00
+
+python run_MAML_04.py --dataset POLLUTION --lower_trial 0 --upper_trial 3 --adaptation_steps 10 --meta_learning_rate 0.005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 50 --noise_level 0.00
+
+python run_MAML_04.py --dataset HR --lower_trial 0 --upper_trial 3 --adaptation_steps 1 --meta_learning_rate 0.0005 --learning_rate 0.01 --epochs 1000 --batch_size 20 --stopping_patience 50 --noise_level 0.00 --save_model_file model5.pt --load_model_file model5.pt

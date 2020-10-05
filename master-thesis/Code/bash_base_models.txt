@@ -48,11 +48,11 @@ python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_m
 python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 1 --epochs 20
 python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 1 --epochs 20
 
+python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.01 --epochs 5 --is_test 0 --epochs 20
 python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001 --is_test 0 --epochs 20
 python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001 --is_test 0 --epochs 20
 python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001 --is_test 0 --epochs 20
 python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.000001 --is_test 0 --epochs 20
-python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0000001 --is_test 0 --epochs 20
 
 python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001 --is_test 0 --epochs 20
 python run_vrada.py --capacity HIGH --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001 --is_test 0 --epochs 20
@@ -140,3 +140,19 @@ python eval_base_models.py --model LSTM --dataset POLLUTION --mode WFT --save_mo
 python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 1 --epochs 20 --task_size 500
 python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 1 --epochs 20 --task_size 500
 
+
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 0 --epochs 5
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0001  --is_test 0 --epochs 20
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.00001  --is_test 0 --epochs 20
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.000001  --is_test 0 --epochs 20
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0000001  --is_test 0 --epochs 20
+
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0000001  --is_test 0 --epochs 20
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.0000001  --is_test 0 --epochs 20
+
+
+python eval_base_models.py --model LSTM  --dataset POLLUTION --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 1 --epochs 10
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 1 --epochs 10
+python eval_base_models.py --model LSTM  --dataset BATTERY --mode WFT --save_model_file temp_model.pt --learning_rate 0.001  --is_test 1 --epochs 10
+
+python eval_base_models.py --model LSTM  --dataset HR --mode WFT --save_model_file temp_model.pt --learning_rate 0.01  --is_test 1 --epochs 10 --upper_trial 2 --lower_trial 1

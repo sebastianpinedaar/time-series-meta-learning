@@ -37,6 +37,15 @@ class FCN(nn.Module):
         x = self.linear(x.squeeze())
         return x
 
+    def encoder(self, x):
+        x = self.conv1(x)
+        x = self.conv2(x)
+        x = self.conv3(x)
+        # apply Global Average Pooling 1D
+        x = self.global_pooling(x)
+        x = x.squeeze()
+        return x    #output size = 128
+
 class ExtendedFCN(nn.Module):
     def __init__(self, fcn, hidden, output_dim):
         super().__init__()
@@ -52,7 +61,16 @@ class ExtendedFCN(nn.Module):
         # apply Global Average Pooling 1D
         x = self.fcn.global_pooling(x)
         x = self.linear1(x.squeeze())
-        return x   
+        return x  
+
+    def encoder(self, x):
+        x = self.fcn.conv1(x)
+        x = self.fcn.conv2(x)
+        x = self.fcn.conv3(x)
+        # apply Global Average Pooling 1D
+        x = self.fcn.global_pooling(x)
+        x = x.squeeze()
+        return x      
 
 class LSTMModel(nn.Module):
     
@@ -78,3 +96,7 @@ class LSTMModel(nn.Module):
         out1 = self.linear(hn[-1].view(len(x),-1))
 
         return out1
+
+    def encoder(self, x):
+        output, (hn, cn) = self.lstm(x)
+        return torch.reshape(hn[-1],(len(x),-1))
