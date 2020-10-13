@@ -100,3 +100,51 @@ class LSTMModel(nn.Module):
     def encoder(self, x):
         output, (hn, cn) = self.lstm(x)
         return torch.reshape(hn[-1],(len(x),-1))
+
+
+
+    
+class LSTMModel_MRA(nn.Module):
+    
+    def __init__(self, batch_size, seq_len, input_dim, n_layers, hidden_dim, output_dim, lin_hidden_dim = 100):
+        super(LSTMModel_MRA, self).__init__()
+
+        self.lstm = nn.LSTM(input_dim, hidden_dim, n_layers, batch_first=True)
+        self.linear = nn.Linear(hidden_dim, output_dim)#
+        self.hidden_dim = hidden_dim
+        self.batch_size = batch_size
+        self.n_layers = n_layers
+        #self.hidden = self.init_hidden()
+        self.input_dim = input_dim
+        
+        self.hidden_to_mean = nn.Linear(self.hidden_dim, self.hidden_dim)
+        self.hidden_to_logvar = nn.Linear(self.hidden_dim, self.hidden_dim)
+        
+    def init_hidden(self):
+        # This is what we'll initialise our hidden state as
+        return (torch.zeros(self.n_layers, self.batch_size, self.hidden_dim),
+                torch.zeros(self.n_layers, self.batch_size, self.hidden_dim))
+        
+    def encoder(self, x):
+
+        _, (hn, _) = self.lstm(x)
+        out = hn[-1].view(len(x),-1)
+        latent_mean = self.hidden_to_mean(out)
+        latent_logvar = self.hidden_to_logvar(out)
+        self.kld = -0.5 * torch.mean(1 + latent_logvar - latent_mean.pow(2) - latent_logvar.exp())
+        
+        if self.training:
+            std = torch.exp(0.5 * latent_logvar)
+            eps = torch.randn_like(std)
+            return eps.mul(std).add_(latent_mean)
+        else:
+            return latent_mean
+
+    def get_kld(self):
+        
+        return self.kld
+
+
+    def forward(self, x):
+
+        return x
