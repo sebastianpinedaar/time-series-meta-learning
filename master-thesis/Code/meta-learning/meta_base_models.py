@@ -57,6 +57,31 @@ class CustomLSTM(nn.LSTM):
 
 
 
+class LinearModel(nn.Module):
+
+    def __init__(self, input_dim, output_dim):
+
+        super(LinearModel, self).__init__()
+        self.linear = nn.Linear(input_dim, output_dim)
+        self.layer_name = "linear"
+
+    def forward(self, x, params):
+
+        if params is None:
+            params = OrderedDict(self.named_parameters())
+
+        input = x
+
+        weight = params.get( self.layer_name + '.weight', None)
+        bias = params.get(self.layer_name + '.bias', None)
+        x = F.linear(x, weight=weight, bias=bias)
+
+        return x
+
+    @property
+    def param_dict(self):
+        return OrderedDict(self.named_parameters())
+
 class LSTMModel(nn.Module):
     
     def __init__(self, batch_size, seq_len, input_dim, n_layers, hidden_dim, output_dim, lin_hidden_dim = 100):

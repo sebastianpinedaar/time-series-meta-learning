@@ -1,4 +1,4 @@
-##only fine-tuning the last layer
+##only fine-tuning the last layer using learn to lern, wtih data augmentaiton
 import learn2learn as l2l
 import numpy as np
 import matplotlib.pyplot as plt

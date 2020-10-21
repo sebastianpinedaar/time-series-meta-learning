@@ -1,6 +1,11 @@
 
 import torch
 import torch.nn as nn
+import sys
+
+sys.path.insert(1, "..")
+
+from metrics import torch_mae as mae
 
 class MetaLearner(object):
     def __init__(self, model, optimizer, fast_lr, loss_func,
@@ -60,7 +65,15 @@ class MetaLearner(object):
         for adapted_params, task in zip(
                 adapted_params_list, val_tasks):
             preds = self._model(task.x, params=adapted_params)
-            loss = self._loss_func(preds, task.y)
+
+            if ~is_training:
+                preds = torch.clamp(preds, 0, 1)
+                loss = mae(preds, task.y)
+                
+            else:
+                
+                loss = self._loss_func(preds, task.y)
+
             post_update_losses.append(loss)
 
         mean_loss = torch.mean(torch.stack(post_update_losses))
