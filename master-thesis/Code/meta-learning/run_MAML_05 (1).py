@@ -1,4 +1,4 @@
-##only fine-tuning the last layer using learn to lern, wtih data augmentaiton
+##only fine-tuning the last layer, wtih data augmentation and meta-regularization
 import learn2learn as l2l
 import numpy as np
 import matplotlib.pyplot as plt
@@ -14,12 +14,12 @@ import os
 sys.path.insert(1, "..")
 
 from ts_dataset import TSDataset
-from base_models import LSTMModel, FCN
+from base_models import LSTMModel, FCN, LSTMModel_MRA
 from metrics import torch_mae as mae
 import copy
 from pytorchtools import EarlyStopping
 
-def test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, noise_level, noise_type, is_test = True, horizon = 10):
+def test2(maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, noise_level, noise_type, is_test = True, horizon = 10):
     
 
     total_tasks_test = len(test_data_ML)
@@ -52,6 +52,8 @@ def test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptati
         
         if model_name == "LSTM":
             model2 = LSTMModel( batch_size=None, seq_len = None, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =1)
+        elif model_name == "LSTM_MRA":
+            model2 = LSTMModel_MRA( batch_size=None, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =1)
         elif model_name == "FCN":
             kernels = [8,5,3] if window_size != 5 else [4,2,1]
             model2 = FCN(time_steps = window_size,  channels=[input_dim, 128, 128, 128] , kernels=kernels)
@@ -94,7 +96,7 @@ def test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptati
 
             #model2.train()
             pred = learner(model.encoder(x_spt))
-            error = loss_fn(pred, y_spt)
+            error = mae(pred, y_spt)
 
             #opt2.zero_grad()
             #error.backward()
@@ -252,8 +254,6 @@ def main(args):
     horizon = 10
     output_dim = 1
 
-    
-
     dataset_name = args.dataset 
     save_model_file = args.save_model_file
     load_model_file = args.load_model_file
@@ -269,11 +269,12 @@ def main(args):
     epochs = args.epochs
     noise_level = args.noise_level
     noise_type = args.noise_type
+    mr_weight = args.mr_weight
     window_size, task_size, input_dim = meta_info[dataset_name]
 
     task_size = args.task_size
 
-    assert model_name in ("FCN", "LSTM"), "Model was not correctly specified"
+    assert model_name in ("FCN", "LSTM", "LSTM_MRA"), "Model was not correctly specified"
     assert dataset_name in ("POLLUTION", "HR", "BATTERY")
 
     
@@ -288,8 +289,6 @@ def main(args):
 
     results_dict = {}
     error_window = [1,1,1]
-    loss_fn = mae
-    #loss_fn = nn.SmoothL1Loss()
 
     for trial in range(lower_trial, upper_trial):
 
@@ -309,10 +308,14 @@ def main(args):
             f.write("Meta-learning rate: %f \n" % meta_learning_rate)
             f.write("Adaptation steps: %f \n" % adaptation_steps)
             f.write("Noise level: %f \n" % noise_level)
+            f.write("Meta-reg weight: %f \n" % mr_weight)
             f.write("\n")   
 
         if model_name == "LSTM":
             model = LSTMModel( batch_size=batch_size, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =1)
+            model2 = nn.Linear(120, 1)
+        elif model_name == "LSTM_MRA":
+            model = LSTMModel_MRA( batch_size=batch_size, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =1)
             model2 = nn.Linear(120, 1)
         elif model_name == "FCN":
             kernels = [8,5,3] if dataset_name!= "POLLUTION" else [4,2,1]
@@ -333,12 +336,14 @@ def main(args):
         early_stopping = EarlyStopping(patience=patience_stopping, model_file=save_model_file_, verbose=True)
         early_stopping2 = EarlyStopping(patience=patience_stopping, model_file=save_model_file_2, verbose=True)
 
-        #scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, patience =200, verbose=True)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(opt, patience =200, verbose=True)
 
         #early_stopping(val_error, maml)
 
         for iteration in range(epochs):
               # Creates a clone of model
+
+            model.train()
             opt.zero_grad()
             iteration_error = 0.0
             
@@ -387,11 +392,11 @@ def main(args):
                 for step in range(adaptation_steps):
                     
                     pred = learner(model.encoder(x_spt))
-                    error = loss_fn(pred, y_spt)
+                    error = mae(pred, y_spt)
                     learner.adapt(error)#, allow_unused=True)#, allow_nograd=True)
 
                 pred = learner(model.encoder(x_qry))
-                evaluation_error = loss_fn(pred, y_qry)
+                evaluation_error = mae(pred, y_qry)
                 iteration_error += evaluation_error
                 #evaluation_error.backward()
 
@@ -399,13 +404,19 @@ def main(args):
             #for p in maml.parameters():
                 #p.grad.data.mul_(1.0 / batch_size)
             iteration_error /= batch_size
+
+            if model_name == "LSTM_MRA":
+                iteration_error+=mr_weight*model.get_kld()
+
             iteration_error.backward()#retain_graph = True)
             #print("loss iteration:",iteration_error)
             opt.step()
+
+            model.eval()
             
             if iteration%1 == 0:
-                val_error = test2(loss_fn, maml, model, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
-                test_error = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type, horizon=10)
+                val_error = test2(maml, model, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
+                test_error = test2(maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type, horizon=10)
                 #scheduler.step(val_error)
                 print("Val error:", val_error)
                 print("Test error:", test_error)
@@ -423,17 +434,17 @@ def main(args):
 
         model.load_state_dict(torch.load(save_model_file_))
         maml.load_state_dict(torch.load(save_model_file_2))
-        validation_error = test2(loss_fn, maml, model, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate,0, noise_type)
-        initial_val_error = test2(loss_fn, maml, model, model_name, dataset_name, validation_data_ML, 0, learning_rate,0, noise_type)
+        validation_error = test2(maml, model, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate,0, noise_type)
+        initial_val_error = test2(maml, model, model_name, dataset_name, validation_data_ML, 0, learning_rate,0, noise_type)
         #validation_error2 = test(maml, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate, with_early_stopping=True)
         #validation_error3 = test(maml, model_name, dataset_name, validation_data_ML, 10, learning_rate, with_early_stopping=True)
         #validation_error4 = test(maml, model_name, dataset_name, validation_data_ML, 10, learning_rate*0.1, with_early_stopping=True)
 
-        test_error = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type)
-        initial_test_error = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, 0, learning_rate, 0, noise_type)
+        test_error = test2(maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type)
+        initial_test_error = test2(maml, model, model_name, dataset_name, test_data_ML, 0, learning_rate, 0, noise_type)
 
-        test_error2 = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type, horizon=1)
-        initial_test_error2 = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, 0, learning_rate, 0, noise_type, horizon=1)
+        test_error2 = test2(maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type, horizon=1)
+        initial_test_error2 = test2(maml, model, model_name, dataset_name, test_data_ML, 0, learning_rate, 0, noise_type, horizon=1)
         #test_error2 = test(maml, model_name, dataset_name, test_data_ML, adaptation_steps , learning_rate, with_early_stopping=True)
         #test_error3 = test(maml, model_name, dataset_name, test_data_ML, 10 , learning_rate, with_early_stopping=True)
         #test_error4 = test(maml, model_name, dataset_name, test_data_ML, 10, learning_rate*0.1, with_early_stopping=True)
@@ -478,6 +489,7 @@ if __name__ == '__main__':
     argparser.add_argument('--noise_level', type=float, help='noise level', default=0.0)
     argparser.add_argument('--noise_type', type=str, help='noise type', default="additive")
     argparser.add_argument('--task_size', type=int, help='Task size', default=50)
+    argparser.add_argument('--mr_weight', type=float, help='meta_regularization weight', default=0.0)
 
     args = argparser.parse_args()
 

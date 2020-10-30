@@ -1,4 +1,4 @@
-##own implementation with data augmentation, fine-tuning only the last layer, 
+##own implementation with data augmentation, fine-tuning only the last layer, using the whole
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,14 +27,13 @@ import argparse
 
 
 
-def test (test_data_ML, meta_learner, model, device, noise_level ,noise_type = "additive", horizon = 10):
+def test (test_data_ML, meta_learner, model, device, horizon = 10):
 
     total_tasks_test = len(test_data_ML)
     task_size = test_data_ML.x.shape[-3]
     input_dim = test_data_ML.x.shape[-1]
     window_size = test_data_ML.x.shape[-2]
     output_dim = test_data_ML.y.shape[-1]
-    grid = [0., noise_level]
 
     accum_error = 0.0
     count = 0
@@ -50,17 +49,6 @@ def test (test_data_ML, meta_learner, model, device, noise_level ,noise_type = "
         x_spt, y_spt = to_torch(x_spt), to_torch(y_spt)
         x_qry = to_torch(x_qry)
         y_qry = to_torch(y_qry)
-
-        epsilon = grid[np.random.randint(0,len(grid))]
-
-        if noise_type == "additive":
-            y_spt = y_spt+epsilon
-            y_qry = y_qry+epsilon
-
-        else:
-            y_spt = y_spt*(1+epsilon)
-            y_qry = y_qry*(1+epsilon)
-
 
         train_task = [Task(model.encoder(x_spt), y_spt)]
         val_task = [Task(model.encoder(x_qry), y_qry)]
@@ -101,7 +89,7 @@ def main(args):
     inner_loop_grad_clip = 20
     task_size = 50
     output_dim = 1
-    checkpoint_freq = 10
+
     horizon = 10
     ##test
 
@@ -129,7 +117,7 @@ def main(args):
         save_model_file_ = output_directory + save_model_file
         save_model_file_encoder = output_directory + "encoder_" + save_model_file
         load_model_file_ = output_directory + load_model_file
-        checkpoint_file = output_directory + "checkpoint_" + save_model_file.split(".")[0]
+
 
         try:
             os.mkdir(output_directory)
@@ -140,7 +128,6 @@ def main(args):
             f.write("Learning rate :%f \n"% fast_lr)
             f.write("Meta-learning rate: %f \n" % slow_lr)
             f.write("Adaptation steps: %f \n" % n_inner_iter)
-            f.write("Noise level: %f \n" % noise_level)
             f.write("\n")
 
         if model_name == "LSTM":
@@ -149,8 +136,6 @@ def main(args):
         optimizer = torch.optim.Adam(list(model.parameters())+list(model2.parameters()), lr = slow_lr)
         loss_func = mae
         #loss_func = nn.SmoothL1Loss()
-        #loss_func = nn.MSELoss()
-        initial_epoch = 0
 
         #torch.backends.cudnn.enabled = False
 
@@ -166,68 +151,62 @@ def main(args):
         early_stopping2 = EarlyStopping(patience=stopping_patience, model_file=save_model_file_, verbose=True)
 
         if resume:
-            checkpoint = torch.load(checkpoint_file)
-            model.load_state_dict(checkpoint["model"])
-            meta_learner.load_state_dict(checkpoint["meta_learner"])
-            initial_epoch = checkpoint["epoch"]
-            best_score = checkpoint["best_score"]
-            counter = checkpoint["counter_stopping"]
+            model.load_state_dict(torch.load(save_model_file_encoder))
+            model2.load_state_dict(torch.load(save_model_file_)["model_state_dict"])
 
-            early_stopping.best_score = best_score
-            early_stopping2.best_score = best_score
+            val_error = test(validation_data_ML, meta_learner, model, device)
 
-            early_stopping.counter = counter
-            early_stopping2.counter = counter
+            early_stopping(val_error, model)
+            early_stopping2(val_error, meta_learner)
 
 
 
         total_tasks, task_size, window_size, input_dim = train_data_ML.x.shape
         accum_mean =0.0
 
-        for epoch in range(initial_epoch, epochs):
-
+        for epoch in range(epochs):
 
             model.zero_grad()
             meta_learner._model.zero_grad()
 
             #train
-            batch_idx = np.random.randint(0, total_tasks-1, batch_size)
+            #batch_idx = np.random.randint(0, total_tasks-1, batch_size)
 
-            #for batch_idx in range(0, total_tasks-1, batch_size):
+            for batch_idx in range(0, total_tasks-1, batch_size):
 
 
-            x_spt, y_spt = train_data_ML[batch_idx]
-            x_qry, y_qry = train_data_ML[batch_idx+1]
+                x_spt, y_spt = train_data_ML[batch_idx:batch_idx+batch_size]
+                x_qry, y_qry = train_data_ML[batch_idx+1:batch_idx+1+batch_size]
 
-            x_spt, y_spt = to_torch(x_spt), to_torch(y_spt)
-            x_qry = to_torch(x_qry)
-            y_qry = to_torch(y_qry)
+                x_spt, y_spt = to_torch(x_spt), to_torch(y_spt)
+                x_qry = to_torch(x_qry)
+                y_qry = to_torch(y_qry)
 
-            # data augmentation
-            epsilon = grid[np.random.randint(0, len(grid))]
+                # data augmentation
+                epsilon = grid[np.random.randint(0, len(grid))]
 
-            if noise_type == "additive":
-                y_spt = y_spt + epsilon
-                y_qry = y_qry + epsilon
-            else:
-                y_spt = y_spt * (1 + epsilon)
-                y_qry = y_qry * (1 + epsilon)
+                if noise_type == "additive":
+                    y_spt = y_spt + epsilon
+                    y_qry = y_qry + epsilon
+                else:
+                    y_spt = y_spt * (1 + epsilon)
+                    y_qry = y_qry * (1 + epsilon)
 
-            train_tasks = [Task(model.encoder(x_spt[i]), y_spt[i]) for i in range(x_spt.shape[0])]
-            val_tasks = [Task(model.encoder(x_qry[i]), y_qry[i]) for i in range(x_qry.shape[0])]
+                train_tasks = [Task(model.encoder(x_spt[i]), y_spt[i]) for i in range(x_spt.shape[0])]
+                val_tasks = [Task(model.encoder(x_qry[i]), y_qry[i]) for i in range(x_qry.shape[0])]
 
-            adapted_params = meta_learner.adapt(train_tasks)
-            mean_loss = meta_learner.step(adapted_params, val_tasks, is_training = True)
-            #accum_mean += mean_loss.cpu().detach().numpy()
+                adapted_params = meta_learner.adapt(train_tasks)
+                mean_loss = meta_learner.step(adapted_params, val_tasks, is_training = True)
+                accum_mean += mean_loss.cpu().detach().numpy()
 
-            #progressBar(batch_idx, total_tasks, 100)
+                progressBar(batch_idx, total_tasks, 100)
 
-            #print(accum_mean/(batch_idx+1))
+            print(accum_mean/(batch_idx+1))
 
             #test
 
-            val_error = test(validation_data_ML, meta_learner, model, device, noise_level)
-            test_error = test(test_data_ML, meta_learner, model, device, 0.0)
+            val_error = test(validation_data_ML, meta_learner, model, device)
+            test_error = test(test_data_ML, meta_learner, model, device)
             print("Epoch:", epoch)
             print("Val error:", val_error)
             print("Test error:", test_error)
@@ -235,18 +214,6 @@ def main(args):
             early_stopping(val_error, model)
             early_stopping2(val_error, meta_learner)
 
-  
-              #checkpointing
-            if epochs % checkpoint_freq ==0:
-                torch.save({ "epoch" : epoch,
-                             "model" : model.state_dict(),
-                             "meta_learner": meta_learner.state_dict(),
-                             "best_score" : early_stopping2.best_score,
-                             "counter_stopping": early_stopping2.counter},
-                             checkpoint_file)
-
-
-    
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
@@ -259,11 +226,13 @@ def main(args):
                         device)
 
 
-        validation_error = test(validation_data_ML, meta_learner, model, device, noise_level = 0.0)
-        test_error = test(test_data_ML, meta_learner, model, device, noise_level = 0.0)
+        validation_error = test(validation_data_ML, meta_learner, model, device)
+        test_error = test(test_data_ML, meta_learner, model, device)
 
-        validation_error_h1 = test(validation_data_ML, meta_learner, model, device, noise_level = 0.0, horizon = 1)
-        test_error_h1 = test(test_data_ML, meta_learner, model, device, noise_level = 0.0, horizon = 1)
+
+        validation_error_h1 = test(validation_data_ML, meta_learner, model, device, horizon = 1)
+        test_error_h1 = test(test_data_ML, meta_learner, model, device, horizon = 1)
+
 
         model.load_state_dict(torch.load(save_model_file_encoder))
         model2.load_state_dict(torch.load(save_model_file_)["model_state_dict"])
@@ -272,16 +241,16 @@ def main(args):
                 device)
 
 
-        validation_error_h0 = test(validation_data_ML, meta_learner2, model, device, noise_level = 0.0, horizon = 1)
-        test_error_h0 = test(test_data_ML, meta_learner2, model, device, noise_level = 0.0, horizon = 1)
+        validation_error_h0 = test(validation_data_ML, meta_learner2, model, device, horizon = 1)
+        test_error_h0 = test(test_data_ML, meta_learner2, model, device, horizon = 1)
 
         model.load_state_dict(torch.load(save_model_file_encoder))
         model2.load_state_dict(torch.load(save_model_file_)["model_state_dict"])
         meta_learner2 = MetaLearner(model2, optimizer, fast_lr ,loss_func,
                 first_order, n_inner_iter, inner_loop_grad_clip,
                 device)
-        validation_error_mae = test(validation_data_ML, meta_learner2, model, device, 0.0)
-        test_error_mae = test(test_data_ML, meta_learner2, model, device, 0.0)
+        validation_error_mae = test(validation_data_ML, meta_learner2, model, device)
+        test_error_mae = test(test_data_ML, meta_learner2, model, device)
         print("test_error_mae", test_error_mae)
 
         with open(output_directory+"/results2.txt", "a+") as f:

@@ -1,10 +1,9 @@
 
 import torch
 import torch.nn as nn
+
 import sys
-
 sys.path.insert(1, "..")
-
 from metrics import torch_mae as mae
 
 class MetaLearner(object):
@@ -57,7 +56,7 @@ class MetaLearner(object):
         return adapted_params
 
     def step(self, adapted_params_list, val_tasks,
-             is_training):
+             is_training, additional_loss_term = None):
         
         self._optimizer.zero_grad()
         post_update_losses = []
@@ -69,14 +68,15 @@ class MetaLearner(object):
             if ~is_training:
                 preds = torch.clamp(preds, 0, 1)
                 loss = mae(preds, task.y)
-                
             else:
-                
                 loss = self._loss_func(preds, task.y)
-
             post_update_losses.append(loss)
 
-        mean_loss = torch.mean(torch.stack(post_update_losses))
+        if additional_loss_term is None:
+            mean_loss = torch.mean(torch.stack(post_update_losses))
+        else:
+            mean_loss = torch.mean(torch.stack(post_update_losses)) + additional_loss_term
+
         if is_training:
             mean_loss.backward()
             self._optimizer.step()
@@ -95,5 +95,10 @@ class MetaLearner(object):
         }
 
         return state
+
+    def load_state_dict(self, state_dict):
+
+        self._model.load_state_dict(state_dict["model_state_dict"])
+        self._optimizer.load_state_dict(state_dict["optimizer"])
 
 
