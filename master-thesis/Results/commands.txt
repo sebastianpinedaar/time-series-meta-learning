@@ -1,0 +1,15 @@
+python run_MAML_04.py  --dataset POLLUTION --type COMPARISON --index 1 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight -
+python run_MAML_04.py  --dataset POLLUTION --type COMPARISON --index 2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight -
+python run_MMAML_04.py --dataset POLLUTION --type COMPARISON --index 5 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight 0.01
+python run_MMAML_04.py --dataset POLLUTION --type COMPARISON --index 6 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight 0.01
+python run_MAML_04.py  --dataset HR --type COMPARISON --index 9 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight -
+python run_MAML_04.py  --dataset HR --type COMPARISON --index 10 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight -
+python run_MMAML_04.py --dataset HR --type COMPARISON --index 13 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight 0.01
+python run_MMAML_04.py --dataset HR --type COMPARISON --index 16 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --vrae_weight 0.01
+python run_MAML_04.py  --dataset BATTERY --type COMPARISON --index 17 --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --vrae_weight -
+python run_MAML_04.py  --dataset BATTERY --type COMPARISON --index 18 --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --vrae_weight -
+python run_MMAML_04.py --dataset BATTERY --type COMPARISON --index 21 --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --vrae_weight 0.01
+python run_MMAML_04.py --dataset BATTERY --type COMPARISON --index 22 --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --vrae_weight 0.01
+python run_MMAML_04.py --dataset POLLUTION --type COMPARISON --index 23 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 500 --vrae_weight 0.01
+python run_MMAML_04.py --dataset HR --type COMPARISON --index 24 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 500 --vrae_weight 0.01
+python run_MMAML_04.py --dataset BATTERY --type COMPARISON --index 25 --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 500 --vrae_weight 0.01

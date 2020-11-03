@@ -379,9 +379,6 @@ def main(args):
                 else:
                     y_spt = y_spt*(1+epsilon)
                     y_qry = y_qry*(1+epsilon)
-
-
-                
                 
                 # Fast adapt
                 for step in range(adaptation_steps):

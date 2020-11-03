@@ -29,7 +29,7 @@ from metrics import torch_mae as mae
 from pytorchtools import EarlyStopping, to_torch
 
 
-def test(loss_fn, maml, multimodal_model, model_name, dataset_name, data_ML, adaptation_steps, learning_rate, noise_level, noise_type, is_test = True, horizon = 10):
+def test(loss_fn, maml, multimodal_model, task_data, dataset_name, data_ML, adaptation_steps, learning_rate, noise_level, noise_type, is_test = True, horizon = 10):
     
     total_tasks = len(data_ML)
     task_size = data_ML.x.shape[-3]
@@ -44,30 +44,22 @@ def test(loss_fn, maml, multimodal_model, model_name, dataset_name, data_ML, ada
         step = 1
 
     step = 1 if step == 0 else step
+    grid = [0., noise_level]
+    accum_error = 0.0
+    count = 1.0
 
-     for task in range(0, (total_tasks_test-horizon-1), step):
+    for task_idx in range(0, (total_tasks-horizon-1), step):
 
-        temp_file_idx = test_data_ML.file_idx[task:task+horizon+1]
+        temp_file_idx = data_ML.file_idx[task_idx:task_idx+horizon+1]
         if(len(np.unique(temp_file_idx))>1):
             continue
-        
-        if model_name == "LSTM":
-            model2 = LSTMModel( batch_size=None, seq_len = None, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =1)
-        elif model_name == "FCN":
-            kernels = [8,5,3] if window_size != 5 else [4,2,1]
-            model2 = FCN(time_steps = window_size,  channels=[input_dim, 128, 128, 128] , kernels=kernels)
-
-        
-        #model2.cuda()
-        #model2.load_state_dict(copy.deepcopy(maml.module.state_dict()))
-        #opt2 = optim.Adam(model2.parameters(), lr=learning_rate)
+            
         learner = maml.clone() 
 
-        x_spt, y_spt = test_data_ML[task]
-        x_qry = test_data_ML.x[(task+1):(task+1+horizon)].reshape(-1, window_size, input_dim)
-        y_qry = test_data_ML.y[(task+1):(task+1+horizon)].reshape(-1, output_dim)
-        #x_qry = test_data_ML.x[(task+1)].reshape(-1, window_size, input_dim)
-        #y_qry = test_data_ML.y[(task+1)].reshape(-1, output_dim)
+        x_spt, y_spt = data_ML[task_idx]
+        x_qry = data_ML.x[(task_idx+1):(task_idx+1+horizon)].reshape(-1, window_size, input_dim)
+        y_qry = data_ML.y[(task_idx+1):(task_idx+1+horizon)].reshape(-1, output_dim)
+        task = task_data[task_idx:task_idx+1].cuda()
 
         x_spt, y_spt = to_torch(x_spt), to_torch(y_spt)
         x_qry = to_torch(x_qry)
@@ -86,25 +78,22 @@ def test(loss_fn, maml, multimodal_model, model_name, dataset_name, data_ML, ada
 
         for step in range(adaptation_steps):
 
-
-            pred = learner(model.encoder(x_spt))
+            x_encoding, _  = multimodal_model(x_spt, task, output_encoding=True)
+            pred = learner(x_encoding)
             error = loss_fn(pred, y_spt)
             learner.adapt(error)
 
-    
-
-        y_pred = learner(model.encoder(x_qry))
+        x_encoding, _  = multimodal_model(x_qry, task, output_encoding=True)
+        y_pred = learner(x_encoding)
         
         y_pred = torch.clamp(y_pred, 0, 1)
         error = mae(y_pred, y_qry)
         
         accum_error += error.data
-        accum_std += error.data**2
+        
         count += 1
         
     error = accum_error/count
-
-    print("std:", accum_std/count)   
 
     return error
 
@@ -230,7 +219,7 @@ def main(args):
         test_loss_hist = []
         total_num_tasks = train_data_ML.x.shape[0]
 
-        for epoch in range(epochs):
+        for iteration in range(epochs):
 
             opt.zero_grad()
             iteration_error = 0.0
@@ -241,9 +230,9 @@ def main(args):
             for _ in range(batch_size):
                 learner = maml.clone()
                 task_idx = np.random.randint(0,total_num_tasks-1)
-                task = task_data_train[task_idx].cuda()
+                task = task_data_train[task_idx:task_idx+1].cuda()
 
-                if train_data_ML.file_idx[task+1] != train_data_ML.file_idx[task]:
+                if train_data_ML.file_idx[task_idx+1] != train_data_ML.file_idx[task_idx]:
                     continue
 
                 x_spt, y_spt = train_data_ML[task_idx]
@@ -285,7 +274,7 @@ def main(args):
 
             iteration_error /= batch_size
             vrae_loss_accum /= batch_size
-            iteration_error += vrae_loss_accum
+            iteration_error += weight_vrae*vrae_loss_accum
             iteration_error.backward()
             opt.step()
 
@@ -296,45 +285,66 @@ def main(args):
             #    writer.add_histogram("Grads_output_layer_" + tag, parm.grad.data.cpu().numpy(), epoch)
 
             multimodal_learner.eval()
-            val_loss = test(validation_data_ML, multimodal_learner, meta_learner, task_data_validation)
-            test_loss = test(test_data_ML, multimodal_learner, meta_learner, task_data_test)
+            
 
-            print("Epoch:", epoch)
-            print("Train loss:", mean_loss)
-            print("Val error:", val_loss)
-            print("Test error:", test_loss)
+            val_loss = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
+            test_loss = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type, horizon=10)
 
-            early_stopping(val_loss, meta_learner)
+            
             early_stopping_encoder(val_loss, multimodal_learner)
-
-            val_loss_hist.append(val_loss)
-            test_loss_hist.append(test_loss)
+            early_stopping(val_loss, maml)
 
             if early_stopping.early_stop:
                 print("Early stopping")
                 break
 
-            writer.add_scalar("Loss/train", mean_loss.cpu().detach().numpy(), epoch)
-            writer.add_scalar("Loss/val", val_loss, epoch)
-            writer.add_scalar("Loss/test", test_loss, epoch)
+
+            print("Epoch:", iteration)
+
+
+            print("Train loss:", iteration_error)
+            print("Val error:", val_loss)
+            print("Test error:", test_loss)
+
+            val_loss_hist.append(val_loss)
+            test_loss_hist.append(test_loss)
+
+            writer.add_scalar("Loss/train", iteration_error.cpu().detach().numpy(), iteration)
+            writer.add_scalar("Loss/val", val_loss, iteration)
+            writer.add_scalar("Loss/test", test_loss, iteration)
 
         multimodal_learner.load_state_dict(torch.load(save_model_file_encoder))
-        output_layer.load_state_dict(torch.load(save_model_file_)["model_state_dict"])
-        meta_learner = MetaLearner(output_layer, opt, learning_rate, loss_fn, first_order, n_inner_iter,
-                                   inner_loop_grad_clip, device)
+        maml.load_state_dict(torch.load(save_model_file_))
 
-        val_loss = test(validation_data_ML, multimodal_learner, meta_learner, task_data_validation)
-        test_loss = test(test_data_ML, multimodal_learner, meta_learner, task_data_test)
+        val_loss = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
+        test_loss = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
+
+        horizon = 1
+        val_loss1 = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=1)
+        test_loss1 = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=1)
+
+        adaptation_steps_ = 0
+        val_loss0 = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
+        test_loss0 = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
+
+
 
         with open(output_directory + "/results3.txt", "a+") as f:
-            f.write("Dataset :%s \n" % dataset_name)
+            f.write("\n \n Learning rate :%f \n"% learning_rate)
+            f.write("Meta-learning rate: %f \n" % meta_learning_rate)
+            f.write("Adaptation steps: %f \n" % adaptation_steps)
+            f.write("Noise level: %f \n" % noise_level)
+            f.write("vrae weight: %f \n" % weight_vrae)
             f.write("Test error: %f \n" % test_loss)
             f.write("Val error: %f \n" % val_loss)
-            f.write("\n")
+            f.write("Test error 1: %f \n" % test_loss1)
+            f.write("Val error 1: %f \n" % val_loss1)
+            f.write("Test error 0: %f \n" % test_loss0)
+            f.write("Val error 0: %f \n" % val_loss0)
 
         writer.add_hparams({"fast_lr": learning_rate,
                             "slow_lr": meta_learning_rate,
-                            "adaption_steps": n_inner_iter,
+                            "adaption_steps": adaptation_steps,
                             "patience": stopping_patience,
                             "weight_vrae": weight_vrae,
                             "noise_level": noise_level,
@@ -363,10 +373,10 @@ if __name__ == '__main__':
     argparser.add_argument('--noise_level', type=float, help='noise level', default=0.0)
     argparser.add_argument('--noise_type', type=str, help='noise type', default="additive")
     argparser.add_argument('--task_size', type=int, help='Task size', default=50)
-    argparser.add_argument('--loss', type=str, help='Loss used in training, possible: MAE, SmoothL1', default="SmoothL1")
+    argparser.add_argument('--loss', type=str, help='Loss used in training, possible: MAE, SmoothL1', default="MAE")
     argparser.add_argument('--modulate_task_net', type=int,
                            help='Whether to use conditional layer for modulation or not', default=1)
-    argparser.add_argument('--weight_vrae', type=float, help='Weight for VRAE', default=1.0)
+    argparser.add_argument('--weight_vrae', type=float, help='Weight for VRAE', default=0.0)
 
     args = argparser.parse_args()
 

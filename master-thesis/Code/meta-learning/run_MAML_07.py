@@ -141,7 +141,6 @@ def main(args):
             f.write("Meta-learning rate: %f \n" % slow_lr)
             f.write("Adaptation steps: %f \n" % n_inner_iter)
             f.write("Noise level: %f \n" % noise_level)
-            f.write("\n")
 
         if model_name == "LSTM":
             model = LSTMModel( batch_size=batch_size, seq_len = window_size, input_dim = input_dim, n_layers = 2, hidden_dim = 120, output_dim =output_dim)
