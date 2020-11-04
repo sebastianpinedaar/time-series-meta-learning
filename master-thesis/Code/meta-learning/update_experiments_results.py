@@ -42,6 +42,9 @@ else:
 
         for data in json_data:
           
+          data["Experiment index"] = data["Experiment_id"].split("_")[0]
+          data["Type"] = data["Experiment_id"].split("_")[1]
+          
           if data["Type"]!= "COMPARISON":
             continue
 
@@ -57,9 +60,35 @@ else:
                 (df["Horizon"].astype(str) == data["Horizon"]) &
                 (df["Evaluation loss"].astype(str) == data["Evaluation loss"]) & 
                 (df["Vrae weight"].astype(str) == data["Vrae weight"]) &
-                (df["Trial"].astype(str) == data["Trial"]) ,[ "Value"]]="2"
+                (df["Trial"].astype(str) == data["Trial"]) ,[ "Value"]]= data["Value"]
 
-          df.to_excel(results_path+"Experiments_results.xlsx")
+        df.to_excel(results_path+"Experiments_results_"+sheet_name+".xlsx")
 
+      if sheet_name == "ABLATION":
+
+        for data in json_data:
+          
+          data["Experiment index"] = data["Experiment_id"].split("_")[0]
+          data["Type"] = data["Experiment_id"].split("_")[1]
+          
+          if data["Type"]!= "ABLATION":
+            continue
+
+          df.loc[(df["Experiment index"].astype(str) == data["Experiment index"]) & 
+                (df["Type"].astype(str) == data["Type"]) &
+                (df["Model"].astype(str) == data["Model"])&
+                (df["Training"].astype(str) == data["Training"]) &
+                (df["Dataset"].astype(str) == data["Dataset"]) &
+                (df["Adaptation steps"].astype(str) == data["Adaptation steps"]) &
+                (df["Learning rate"].astype(str) == data["Learning rate"]) &
+                (df["Noise level"].astype(str) == data["Noise level"]) &
+                (df["Task size"].astype(str) == data["Task size"]) &
+                (df["Horizon"].astype(str) == data["Horizon"]) &
+                (df["Evaluation loss"].astype(str) == data["Evaluation loss"]) & 
+                (df["Vrae weight"].astype(str) == data["Vrae weight"]) &
+                (df["Trial"].astype(str) == data["Trial"]) & 
+                (df["ML-Horizon"].astype(str) == data["ML-Horizon"]) ,[ "Value"]]= data["Value"]
+
+        df.to_excel(results_path+"Experiments_results_"+sheet_name+".xlsx")
 
 

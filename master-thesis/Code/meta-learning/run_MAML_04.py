@@ -10,6 +10,7 @@ import pickle
 import sys
 import argparse
 import os
+import json
 
 sys.path.insert(1, "..")
 
@@ -269,6 +270,9 @@ def main(args):
     epochs = args.epochs
     noise_level = args.noise_level
     noise_type = args.noise_type
+    ml_horizon = args.ml_horizon
+    experiment_id = args.experiment_id
+
     window_size, task_size, input_dim = meta_info[dataset_name]
 
     task_size = args.task_size
@@ -286,9 +290,23 @@ def main(args):
     test_data = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
     test_data_ML = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
 
-    results_dict = {}
+    
     error_window = [1,1,1]
     loss_fn = mae
+
+    results_list = []
+    results_dict = {}
+    results_dict["Experiment_id"] = experiment_id
+    results_dict["Model"] = model_name
+    results_dict["Dataset"] = dataset_name
+    results_dict["Learning rate"] = learning_rate
+    results_dict["Noise level"] = noise_level
+    results_dict["Task size"] = task_size
+    results_dict["Evaluation loss"] = "MAE test"
+    results_dict["Vrae weight"] = "-"
+    results_dict["Training"] = "MAML"
+
+
     #loss_fn = nn.SmoothL1Loss()
 
     for trial in range(lower_trial, upper_trial):
@@ -354,7 +372,7 @@ def main(args):
 
                 x_spt, y_spt = train_data_ML[task]
                 #x_qry, y_qry = train_data_ML[(task+1):(task+1+horizon)]
-                x_qry, y_qry = train_data_ML[task+1]
+                x_qry, y_qry = train_data_ML[task+ml_horizon]
                 #x_qry, y_qry = train_data_ML[task_qry]
 
                 x_qry = x_qry.reshape(-1, window_size, input_dim)
@@ -381,7 +399,7 @@ def main(args):
                     y_qry = y_qry*(1+epsilon)
                 
                 # Fast adapt
-                for step in range(adaptation_steps):
+                for _ in range(adaptation_steps):
                     
                     pred = learner(model.encoder(x_spt))
                     error = loss_fn(pred, y_spt)
@@ -420,20 +438,16 @@ def main(args):
 
         model.load_state_dict(torch.load(save_model_file_))
         maml.load_state_dict(torch.load(save_model_file_2))
+
         validation_error = test2(loss_fn, maml, model, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate,0, noise_type)
         initial_val_error = test2(loss_fn, maml, model, model_name, dataset_name, validation_data_ML, 0, learning_rate,0, noise_type)
-        #validation_error2 = test(maml, model_name, dataset_name, validation_data_ML, adaptation_steps, learning_rate, with_early_stopping=True)
-        #validation_error3 = test(maml, model_name, dataset_name, validation_data_ML, 10, learning_rate, with_early_stopping=True)
-        #validation_error4 = test(maml, model_name, dataset_name, validation_data_ML, 10, learning_rate*0.1, with_early_stopping=True)
 
         test_error = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type)
         initial_test_error = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, 0, learning_rate, 0, noise_type)
 
         test_error2 = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type, horizon=1)
         initial_test_error2 = test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, 0, learning_rate, 0, noise_type, horizon=1)
-        #test_error2 = test(maml, model_name, dataset_name, test_data_ML, adaptation_steps , learning_rate, with_early_stopping=True)
-        #test_error3 = test(maml, model_name, dataset_name, test_data_ML, 10 , learning_rate, with_early_stopping=True)
-        #test_error4 = test(maml, model_name, dataset_name, test_data_ML, 10, learning_rate*0.1, with_early_stopping=True)
+
 
         with open(output_directory+"/results3.txt", "a+") as f:
             f.write("Dataset :%s \n"% dataset_name)
@@ -441,19 +455,52 @@ def main(args):
             f.write("Test error2: %f \n" % test_error2)
             f.write("Initial Test error: %f \n" % initial_test_error)
             f.write("Initial Test error2: %f \n" % initial_test_error2)
-
             f.write("Validation error: %f \n" %validation_error)
             f.write("Initial validation error: %f \n" %initial_val_error)
-            #f.write("Validation error3: %f \n" %validation_error3)
-            #f.write("Validation error4: %f \n" %validation_error4)
+
             f.write("\n")
         
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = adaptation_steps
+        temp_results_dict["Horizon"] = 10
+        temp_results_dict["Value"] = test_error
+        temp_results_dict["Val error"] = validation_error
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)
 
-        results_dict[str(trial)+"_val"] = validation_error
-        results_dict[str(trial)+"_test"] = test_error
-    
-    np.save("npy_objects/run04_"+dataset_name+"_"+model_name+"_L"+str(learning_rate)+"_M"+str(meta_learning_rate)+"_A"+str(adaptation_steps)+"_N"+str(noise_level*100000)+".npy", results_dict) 
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = 0
+        temp_results_dict["Horizon"] = 10
+        temp_results_dict["Value"] = initial_test_error  
+        temp_results_dict["Val error"] = initial_val_error
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)      
 
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = adaptation_steps
+        temp_results_dict["Horizon"] = 1
+        temp_results_dict["Value"] = test_error2
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)
+
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = 0
+        temp_results_dict["Horizon"] = 1
+        temp_results_dict["Value"] = initial_test_error2
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)  
+
+    try:
+        os.mkdir("../../Results/json_files/")
+    except:
+        print(error)
+        
+    with open("../../Results/json_files/"+experiment_id+".json", 'w') as outfile:
+        json.dump(results_list, outfile)
 
 
 if __name__ == '__main__':
@@ -475,6 +522,8 @@ if __name__ == '__main__':
     argparser.add_argument('--noise_level', type=float, help='noise level', default=0.0)
     argparser.add_argument('--noise_type', type=str, help='noise type', default="additive")
     argparser.add_argument('--task_size', type=int, help='Task size', default=50)
+    argparser.add_argument('--ml_horizon', type=int, help='Horizon for training in time series meta-learning', default=1)
+    argparser.add_argument('--experiment_id', type=int, help='experiment_id for the experiments list', default="DEFAULT-ID")
 
     args = argparser.parse_args()
 

@@ -117,6 +117,8 @@ def main(args):
     modulate_task_net = args.modulate_task_net
     weight_vrae = args.weight_vrae
     stopping_patience = args.stopping_patience
+    ml_horizon = args.ml_horizon
+    experiment_id = args.experiment_id
 
     meta_info = {"POLLUTION": [5, 14],
                  "HR": [32, 13],
@@ -157,8 +159,17 @@ def main(args):
     output_dim_task_decoder = input_dim + 1
     output_dim = 1
 
-    first_order = False
-    inner_loop_grad_clip = 20
+    results_list = []
+    results_dict = {}
+    results_dict["Experiment_id"] = experiment_id
+    results_dict["Model"] = model_name
+    results_dict["Dataset"] = dataset_name
+    results_dict["Learning rate"] = learning_rate
+    results_dict["Noise level"] = noise_level
+    results_dict["Task size"] = task_size
+    results_dict["Evaluation loss"] = "MAE test"
+    results_dict["Vrae weight"] = "-"
+    results_dict["Training"] = "MMAML"
 
     for trial in range(lower_trial, upper_trial):
 
@@ -236,7 +247,7 @@ def main(args):
                     continue
 
                 x_spt, y_spt = train_data_ML[task_idx]
-                x_qry, y_qry = train_data_ML[task_idx + 1]
+                x_qry, y_qry = train_data_ML[task_idx + ml_horizon]
                 x_qry = x_qry.reshape(-1, window_size, input_dim)
                 y_qry = y_qry.reshape(-1, output_dim)
 
@@ -278,19 +289,11 @@ def main(args):
             iteration_error.backward()
             opt.step()
 
-            # print(vrae_loss)
-
-            ##plotting grad of output layer
-            #for tag, parm in output_layer.linear.named_parameters():
-            #    writer.add_histogram("Grads_output_layer_" + tag, parm.grad.data.cpu().numpy(), epoch)
-
             multimodal_learner.eval()
             
-
             val_loss = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
             test_loss = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps, learning_rate, 0, noise_type, horizon=10)
-
-            
+           
             early_stopping_encoder(val_loss, multimodal_learner)
             early_stopping(val_loss, maml)
 
@@ -298,9 +301,7 @@ def main(args):
                 print("Early stopping")
                 break
 
-
             print("Epoch:", iteration)
-
 
             print("Train loss:", iteration_error)
             print("Val error:", val_loss)
@@ -319,15 +320,15 @@ def main(args):
         val_loss = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
         test_loss = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=10)
 
-        horizon = 1
         val_loss1 = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=1)
         test_loss1 = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps, learning_rate, noise_level, noise_type,horizon=1)
 
         adaptation_steps_ = 0
-        val_loss0 = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
-        test_loss0 = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
-
-
+        val_loss_0 = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
+        test_loss_0 = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
+        
+        val_loss1_0 = test(loss_fn, maml, multimodal_learner, task_data_validation, dataset_name, validation_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
+        test_loss1_0 = test(loss_fn, maml, multimodal_learner, task_data_test, dataset_name, test_data_ML, adaptation_steps_, learning_rate, noise_level, noise_type,horizon=1)
 
         with open(output_directory + "/results3.txt", "a+") as f:
             f.write("\n \n Learning rate :%f \n"% learning_rate)
@@ -353,6 +354,40 @@ def main(args):
                            {"val_loss": val_loss,
                             "test_loss": test_loss})
 
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = adaptation_steps
+        temp_results_dict["Horizon"] = 10
+        temp_results_dict["Value"] = test_loss
+        temp_results_dict["Val error"] = val_loss
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)
+
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = 0
+        temp_results_dict["Horizon"] = 10
+        temp_results_dict["Value"] = test_loss_0 
+        temp_results_dict["Val error"] = val_loss_0
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)      
+
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = adaptation_steps
+        temp_results_dict["Horizon"] = 1
+        temp_results_dict["Value"] = test_loss1
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)
+
+        temp_results_dict = results_dict
+        temp_results_dict["Trial"] = trial
+        temp_results_dict["Adaptation steps"] = 0
+        temp_results_dict["Horizon"] = 1
+        temp_results_dict["Value"] = test_loss1_0
+        temp_results_dict["Final_epoch"] = iteration
+        results_list.append(temp_results_dict)  
+
 
 if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
@@ -377,6 +412,8 @@ if __name__ == '__main__':
     argparser.add_argument('--modulate_task_net', type=int,
                            help='Whether to use conditional layer for modulation or not', default=1)
     argparser.add_argument('--weight_vrae', type=float, help='Weight for VRAE', default=0.0)
+    argparser.add_argument('--ml_horizon', type=int, help='Horizon for training in time series meta-learning', default=1)
+    argparser.add_argument('--experiment_id', type=int, help='experiment_id for the experiments list', default="DEFAULT-ID")
 
     args = argparser.parse_args()
 
