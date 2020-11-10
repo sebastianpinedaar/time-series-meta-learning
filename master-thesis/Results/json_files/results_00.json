@@ -1,1 +1,0 @@
-[{"Experiment index": "1", "Type": "COMPARISON", "Model": "LSTM", "Training": "MAML", "Dataset": "POLLUTION", "Adaptation steps": "1", "Learning rate": "0.01", "Meta-learning rate": "0.0005", "Noise level": "0.01", "Task size": "50", "Horizon": "1", "Evaluation loss": "MAE test", "Vrae weight": "-", "Trial": "0", "Value": "1"}]

@@ -11,6 +11,7 @@ import sys
 import argparse
 import os
 import json
+import copy
 
 sys.path.insert(1, "..")
 
@@ -117,9 +118,9 @@ def test2(loss_fn, maml, model, model_name, dataset_name, test_data_ML, adaptati
         
     error = accum_error/count
 
-    print("std:", accum_std/count)
+    #print("std:", accum_std/count)
     
-    return error   
+    return error.cpu().numpy()   
 
 
 def test(maml, model_name, dataset_name, test_data_ML, adaptation_steps, learning_rate, with_early_stopping = False, horizon = 10):
@@ -290,8 +291,6 @@ def main(args):
     test_data = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-NOML.pickle", "rb" ) )
     test_data_ML = pickle.load( open( "../../Data/TEST-"+dataset_name+"-W"+str(window_size)+"-T"+str(task_size)+"-ML.pickle", "rb" ) )
 
-    
-    error_window = [1,1,1]
     loss_fn = mae
 
     results_list = []
@@ -302,9 +301,11 @@ def main(args):
     results_dict["Learning rate"] = learning_rate
     results_dict["Noise level"] = noise_level
     results_dict["Task size"] = task_size
-    results_dict["Evaluation loss"] = "MAE test"
+    results_dict["Evaluation loss"] = "MAE Test"
     results_dict["Vrae weight"] = "-"
     results_dict["Training"] = "MAML"
+    results_dict["ML-Horizon"] = ml_horizon
+    results_dict["Meta-learning rate"] = meta_learning_rate
 
 
     #loss_fn = nn.SmoothL1Loss()
@@ -313,8 +314,8 @@ def main(args):
 
         output_directory = "../../Models/"+dataset_name+"_"+model_name+"_MAML/"+str(trial)+"/"
 
-        save_model_file_ = output_directory + "encoder_"+save_model_file
-        save_model_file_2 = output_directory + save_model_file
+        save_model_file_ = output_directory +  experiment_id + "_"+"encoder_"+save_model_file
+        save_model_file_2 = output_directory  + experiment_id + "_"+ save_model_file
         load_model_file_ = output_directory + load_model_file
 
         try:
@@ -424,9 +425,6 @@ def main(args):
                 #scheduler.step(val_error)
                 print("Val error:", val_error)
                 print("Test error:", test_error)
-                error_window[iteration%3] = float(val_error.cpu().numpy())
-                print(np.std(error_window))
-                print(np.std(error_window)*10+val_error)
 
                 if iteration> 10:
                     early_stopping(val_error, model)
@@ -460,43 +458,44 @@ def main(args):
 
             f.write("\n")
         
-        temp_results_dict = results_dict
+        print("Adaptation_steps:", adaptation_steps)
+        temp_results_dict = copy.copy(results_dict)
         temp_results_dict["Trial"] = trial
         temp_results_dict["Adaptation steps"] = adaptation_steps
         temp_results_dict["Horizon"] = 10
-        temp_results_dict["Value"] = test_error
-        temp_results_dict["Val error"] = validation_error
+        temp_results_dict["Value"] = float(test_error)
+        temp_results_dict["Val error"] = float(validation_error)
         temp_results_dict["Final_epoch"] = iteration
         results_list.append(temp_results_dict)
 
-        temp_results_dict = results_dict
+        temp_results_dict = copy.copy(results_dict)
         temp_results_dict["Trial"] = trial
         temp_results_dict["Adaptation steps"] = 0
         temp_results_dict["Horizon"] = 10
-        temp_results_dict["Value"] = initial_test_error  
-        temp_results_dict["Val error"] = initial_val_error
+        temp_results_dict["Value"] = float(initial_test_error ) 
+        temp_results_dict["Val error"] = float(initial_val_error)
         temp_results_dict["Final_epoch"] = iteration
         results_list.append(temp_results_dict)      
 
-        temp_results_dict = results_dict
+        temp_results_dict = copy.copy(results_dict)
         temp_results_dict["Trial"] = trial
         temp_results_dict["Adaptation steps"] = adaptation_steps
         temp_results_dict["Horizon"] = 1
-        temp_results_dict["Value"] = test_error2
+        temp_results_dict["Value"] = float(test_error2)
         temp_results_dict["Final_epoch"] = iteration
         results_list.append(temp_results_dict)
 
-        temp_results_dict = results_dict
+        temp_results_dict = copy.copy(results_dict)
         temp_results_dict["Trial"] = trial
         temp_results_dict["Adaptation steps"] = 0
         temp_results_dict["Horizon"] = 1
-        temp_results_dict["Value"] = initial_test_error2
+        temp_results_dict["Value"] = float(initial_test_error2)
         temp_results_dict["Final_epoch"] = iteration
         results_list.append(temp_results_dict)  
 
     try:
         os.mkdir("../../Results/json_files/")
-    except:
+    except OSError as error:
         print(error)
         
     with open("../../Results/json_files/"+experiment_id+".json", 'w') as outfile:
@@ -508,7 +507,7 @@ if __name__ == '__main__':
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--dataset', type=str, help='dataset to use, possible: POLLUTION, HR, BATTERY', default="POLLUTION")
     argparser.add_argument('--model', type=str, help='base model, possible: LSTM, FCN', default="LSTM")
-    argparser.add_argument('--adaptation_steps', type=int, help='number of updates in the inner loop', default=5)
+    argparser.add_argument('--adaptation_steps', type=int, help='number of updates in the inner loop', default=1)
     argparser.add_argument('--learning_rate', type=float, help='learning rate for the inner loop', default=0.01)
     argparser.add_argument('--meta_learning_rate', type=float, help='learning rate for the outer loop', default=0.005)
     argparser.add_argument('--batch_size', type=int, help='batch size for the meta-upates (outer loop)', default=20)
@@ -517,13 +516,13 @@ if __name__ == '__main__':
     argparser.add_argument('--lower_trial', type=int, help='identifier of the lower trial value', default=0)
     argparser.add_argument('--upper_trial', type=int, help='identifier of the upper trial value', default=3)
     argparser.add_argument('--is_test', type=int, help='whether apply on test (1) or validation (0)', default=0)
-    argparser.add_argument('--stopping_patience', type=int, help='patience for early stopping', default=30)
-    argparser.add_argument('--epochs', type=int, help='epochs', default=2000)
+    argparser.add_argument('--stopping_patience', type=int, help='patience for early stopping', default=500)
+    argparser.add_argument('--epochs', type=int, help='epochs', default=20000)
     argparser.add_argument('--noise_level', type=float, help='noise level', default=0.0)
     argparser.add_argument('--noise_type', type=str, help='noise type', default="additive")
     argparser.add_argument('--task_size', type=int, help='Task size', default=50)
     argparser.add_argument('--ml_horizon', type=int, help='Horizon for training in time series meta-learning', default=1)
-    argparser.add_argument('--experiment_id', type=int, help='experiment_id for the experiments list', default="DEFAULT-ID")
+    argparser.add_argument('--experiment_id', type=str, help='experiment_id for the experiments list', default="DEFAULT-ID")
 
     args = argparser.parse_args()
 

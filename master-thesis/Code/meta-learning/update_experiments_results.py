@@ -31,40 +31,50 @@ else:
 
   files.pop(files.index(sample_file))
 
-  for file in files:
+  df = pd.read_excel(experiments_file, engine="odf", sheet_name=sheet_name)
 
-    with open('../../Results/json_files/'+file) as json_file:
+  if sheet_name == "MAML-MMAML":
+
+    for file in files:
+
+      with open('../../Results/json_files/'+file) as json_file:
       
-      json_data = json.load(json_file)
-      df = pd.read_excel(experiments_file, engine="odf", sheet_name=sheet_name)
+        json_data = json.load(json_file)
+     
 
-      if sheet_name == "MAML-MMAML":
 
         for data in json_data:
-          
+          print(data)
           data["Experiment index"] = data["Experiment_id"].split("_")[0]
           data["Type"] = data["Experiment_id"].split("_")[1]
           
-          if data["Type"]!= "COMPARISON":
-            continue
+          #if data["Type"]!= "COMPARISON":
+          #  continue
 
           df.loc[(df["Experiment index"].astype(str) == data["Experiment index"]) & 
                 (df["Type"].astype(str) == data["Type"]) &
                 (df["Model"].astype(str) == data["Model"])&
                 (df["Training"].astype(str) == data["Training"]) &
                 (df["Dataset"].astype(str) == data["Dataset"]) &
-                (df["Adaptation steps"].astype(str) == data["Adaptation steps"]) &
-                (df["Learning rate"].astype(str) == data["Learning rate"]) &
-                (df["Noise level"].astype(str) == data["Noise level"]) &
-                (df["Task size"].astype(str) == data["Task size"]) &
-                (df["Horizon"].astype(str) == data["Horizon"]) &
+                (df["Adaptation steps"] == data["Adaptation steps"]) &
+                (df["Meta-learning rate"] == data["Meta-learning rate"]) &
+                (df["Learning rate"] == data["Learning rate"]) &
+                (df["Noise level"] == data["Noise level"]) &
+                (df["Task size"]== data["Task size"]) &
+                (df["Horizon"] == data["Horizon"]) &
                 (df["Evaluation loss"].astype(str) == data["Evaluation loss"]) & 
-                (df["Vrae weight"].astype(str) == data["Vrae weight"]) &
-                (df["Trial"].astype(str) == data["Trial"]) ,[ "Value"]]= data["Value"]
+                (df["Vrae weight"]== data["Vrae weight"]) &
+                (df["Trial"] == data["Trial"]) ,[ "Value"]]= data["Value"]
 
         df.to_excel(results_path+"Experiments_results_"+sheet_name+".xlsx")
 
-      if sheet_name == "ABLATION":
+  if sheet_name == "ABLATION":
+
+    for file in files:
+
+      with open('../../Results/json_files/'+file) as json_file:
+          
+        json_data = json.load(json_file)
 
         for data in json_data:
           
@@ -79,15 +89,16 @@ else:
                 (df["Model"].astype(str) == data["Model"])&
                 (df["Training"].astype(str) == data["Training"]) &
                 (df["Dataset"].astype(str) == data["Dataset"]) &
-                (df["Adaptation steps"].astype(str) == data["Adaptation steps"]) &
-                (df["Learning rate"].astype(str) == data["Learning rate"]) &
-                (df["Noise level"].astype(str) == data["Noise level"]) &
-                (df["Task size"].astype(str) == data["Task size"]) &
-                (df["Horizon"].astype(str) == data["Horizon"]) &
+                (df["Adaptation steps"] == data["Adaptation steps"]) &
+                (df["Meta-learning rate"] == data["Meta-learning rate"]) &
+                (df["Learning rate"] == data["Learning rate"]) &
+                (df["Noise level"] == data["Noise level"]) &
+                (df["Task size"] == data["Task size"]) &
+                (df["Horizon"] == data["Horizon"]) &
                 (df["Evaluation loss"].astype(str) == data["Evaluation loss"]) & 
-                (df["Vrae weight"].astype(str) == data["Vrae weight"]) &
-                (df["Trial"].astype(str) == data["Trial"]) & 
-                (df["ML-Horizon"].astype(str) == data["ML-Horizon"]) ,[ "Value"]]= data["Value"]
+                (df["Vrae weight"]== data["Vrae weight"]) &
+                (df["Trial"] == data["Trial"]) & 
+                (df["ML-Horizon"]== data["ML-Horizon"]) ,[ "Value"]]= data["Value"]
 
         df.to_excel(results_path+"Experiments_results_"+sheet_name+".xlsx")
 
