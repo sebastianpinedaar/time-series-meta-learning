@@ -1,15 +1,21 @@
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset POLLUTION --experiment_id 1_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset POLLUTION --experiment_id 2_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 5
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset POLLUTION --experiment_id 5_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset POLLUTION --experiment_id 6_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 5 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset HR --experiment_id 9_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset HR --experiment_id 10_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 5
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset HR --experiment_id 13_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset HR --experiment_id 16_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 5 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset BATTERY --experiment_id 17_COMPARISON --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 1
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset BATTERY --experiment_id 18_COMPARISON --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 5
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset BATTERY --experiment_id 21_COMPARISON --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 1 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset BATTERY --experiment_id 22_COMPARISON --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 10 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset POLLUTION --experiment_id 23_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 500 --adaptation_steps 1 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset HR --experiment_id 24_COMPARISON --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 500 --adaptation_steps 1 --weight_vrae 0.01
-srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset BATTERY --experiment_id 25_COMPARISON --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 500 --adaptation_steps 1 --weight_vrae 0.01
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset POLLUTION --experiment_id 1_COMPARISON_2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset POLLUTION --experiment_id 2_COMPARISON_2 --learning_rate 0.001 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 10
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset POLLUTION --experiment_id 5_COMPARISON_2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1 --weight_vrae 0.01
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset POLLUTION --experiment_id 6_COMPARISON_2 --learning_rate 0.001 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 10 --weight_vrae 0.01
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset HR --experiment_id 9_COMPARISON_2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset HR --experiment_id 10_COMPARISON_2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 10
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset HR --experiment_id 13_COMPARISON_2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 1 --weight_vrae 0.01
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset HR --experiment_id 16_COMPARISON_2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 50 --adaptation_steps 10 --weight_vrae 0.01
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset BATTERY --experiment_id 17_COMPARISON_2 --learning_rate 0.001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 1
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MAML_04.py  --dataset BATTERY --experiment_id 18_COMPARISON_2 --learning_rate 0.001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 10
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset BATTERY --experiment_id 21_COMPARISON_2 --learning_rate 0.001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 1 --weight_vrae 0.0001
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset BATTERY --experiment_id 22_COMPARISON_2 --learning_rate 0.001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 50 --adaptation_steps 10 --weight_vrae 0.0001
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset POLLUTION --experiment_id 23_COMPARISON_2 --learning_rate 0.0001 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 500 --adaptation_steps 1 --weight_vrae 0.01
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset HR --experiment_id 24_COMPARISON_2 --learning_rate 0.01 --meta_learning_rate 0.0005 --noise_level 0.01 --task_size 500 --adaptation_steps 1 --weight_vrae 0.01
+srun python /home/pineda/meta-learning/Code/meta-learning/run_MMAML_04.py --dataset BATTERY --experiment_id 25_COMPARISON_2 --learning_rate 0.0001 --meta_learning_rate 5e-05 --noise_level 0.0 --task_size 500 --adaptation_steps 1 --weight_vrae 0.0001
+
+#TODO
+#run again with 10 steps
+#change better VRAE parameters for more optimals
+#run 5 times
+#upload the data for 500 tasks

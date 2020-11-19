@@ -110,23 +110,23 @@ def step(vrada, data_iter, len_dataloader, epoch = 0, lambda1 = 0.1,  is_train=F
         
 
 
-def train(vrada, domain_train_loader, domain_val_loader, lambda1 = 0.1, monitor_stopping = True):
+def train(vrada, domain_train_loader, domain_val_loader = None, lambda1 = 0.1, monitor_stopping = False):
 
     for epoch in range(n_epochs):
 
         len_train_loader = len(domain_train_loader)
         train_iter = iter(domain_train_loader)
 
-        len_val_loader = len(domain_val_loader)
-        val_iter = iter(domain_val_loader)
+        #len_val_loader = len(domain_val_loader)
+        #val_iter = iter(domain_val_loader)
 
         alpha, mean_err_reg_train = step(vrada, train_iter, len_train_loader, epoch, lambda1, True)
 
-        with torch.no_grad():
-            alpha, mean_err_reg_val= step(vrada, val_iter, len_val_loader)
+        #with torch.no_grad():
+        #    alpha, mean_err_reg_val= step(vrada, val_iter, len_val_loader)
 
         print ('epoch: %d, \n TRAINING -> mean_err: %f' % (epoch, mean_err_reg_train))
-        print ('epoch: %d, \n VAL -> mean_err: %f' % (epoch, mean_err_reg_val))
+        #print ('epoch: %d, \n VAL -> mean_err: %f' % (epoch, mean_err_reg_val))
 
         #torch.save(my_net, '{0}/mnist_mnistm_model_epoch_{1}.pth'.format(model_root, epoch))
         #test(source_dataset_name, epoch)
@@ -343,27 +343,29 @@ for dataset_name, window_size, task_size, x_dim in meta_info:
                 vrada.load_state_dict(torch.load(model_file))
                 freeze_vrada(vrada)
                 
-                temp_x_train = test_data_ML.x[task_id][:int(task_size*0.8)]
-                temp_y_train = test_data_ML.y[task_id][:int(task_size*0.8)]
+                #temp_x_train = test_data_ML.x[task_id][:int(task_size*0.8)]
+                #temp_y_train = test_data_ML.y[task_id][:int(task_size*0.8)]
                 
-                temp_x_val = test_data_ML.x[task_id][int(task_size*0.8):]
-                temp_y_val = test_data_ML.y[task_id][int(task_size*0.8):]
+                #temp_x_val = test_data_ML.x[task_id][int(task_size*0.8):]
+                #temp_y_val = test_data_ML.y[task_id][int(task_size*0.8):]
+                temp_x_train = test_data_ML.x[task_id]
+                temp_y_train = test_data_ML.y[task_id] 
 
                 temp_x_test = test_data_ML.x[(task_id+1):(task_id+horizon+1)].reshape(-1, dim, channels)
                 temp_y_test = test_data_ML.y[(task_id+1):(task_id+horizon+1)].reshape(-1, 1)
 
                 domain_train_data = DomainTSDataset(x = temp_x_train, y= temp_y_train, d = [0]*temp_x_train.shape[0])
-                domain_val_data = DomainTSDataset(x = temp_x_val, y=temp_y_val, d=[0]*temp_x_val.shape[0])
+                #domain_val_data = DomainTSDataset(x = temp_x_val, y=temp_y_val, d=[0]*temp_x_val.shape[0])
                 domain_test_data = DomainTSDataset(x = temp_x_test, y= temp_y_test, d= [0]*temp_x_test.shape[0])
 
                 domain_train_loader = DataLoader(domain_train_data, **params)
-                domain_val_loader = DataLoader(domain_val_data, **params)
+                #domain_val_loader = DataLoader(domain_val_data, **params)
                 domain_test_loader = DataLoader(domain_test_data, **params)              
 
                 optimizer = optim.Adam(vrada.parameters(), lr=learning_rate)
 
                 initial_test_loss_list.append( test(vrada, domain_test_loader))
-                train(vrada, domain_train_loader, domain_val_loader, lambda1 = lambda1)
+                train(vrada, domain_train_loader, None, lambda1 = lambda1)
                 test_loss_list.append( test(vrada, domain_test_loader))
                 print(np.mean(test_loss_list))
 

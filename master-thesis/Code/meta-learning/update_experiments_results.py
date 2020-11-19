@@ -16,7 +16,6 @@ if sample_file not in files:
 
   with open('../../Results/json_files/results_example.json', 'w') as outfile:
 
-
     experiments_file = pd.read_excel(experiments_file, engine="odf", sheet_name="MAML-MMAML")
     print("Fields:", experiments_file.columns)
 
@@ -41,8 +40,6 @@ else:
       
         json_data = json.load(json_file)
      
-
-
         for data in json_data:
           print(data)
           data["Experiment index"] = data["Experiment_id"].split("_")[0]
