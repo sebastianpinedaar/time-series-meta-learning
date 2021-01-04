@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             //"args": ["--batch_size", "20", "--dataset", "HR", "--lower_trial", "0", "--upper_trial", "1", "--adaptation_steps", "1", "--epochs", "5", "--learning_rate", "0.01", "--meta_learning_rate", "0.005", "--stopping_patience", "20"]
             //"args": [ "--dataset", "BATTERY", "--lower_trial", "0", "--upper_trial", "1", "--adaptation_steps", "20", "--epochs", "5", "--load_model_file", "model6.pt", "--is_test", "1", "--save_model_file", "model6.pt"]
-            "args": [ "--dataset", "HR", "--lower_trial", "0", "--upper_trial", "5", "--adaptation_steps", "1", "--epochs", "5", "--load_model_file", "model6.pt", "--is_test", "1", "--save_model_file", "model6.pt","--experiment_id", "13_COMPARISON_2", "--learning_rate", "0.01"]
+            //"args": [ "--dataset", "HR", "--lower_trial", "0", "--upper_trial", "5", "--adaptation_steps", "1", "--epochs", "5", "--load_model_file", "model6.pt", "--is_test", "1", "--save_model_file", "model6.pt","--experiment_id", "13_COMPARISON_2", "--learning_rate", "0.01"]
+            "args": ["--dataset", "POLLUTION", "--mode", "50"]
         }
     ]
 }

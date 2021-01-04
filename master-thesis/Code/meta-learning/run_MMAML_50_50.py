@@ -97,6 +97,7 @@ def main(args):
 
     trials_loss_list = []
     modulate_task_net = True
+    
 
     #trial = 0
     for trial in range(lower_trial, upper_trial):
